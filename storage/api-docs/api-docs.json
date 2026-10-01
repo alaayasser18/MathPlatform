@@ -1,0 +1,1822 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "MathPlatform API",
+        "description": "API for MathPlatform",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://127.0.0.1:8000",
+            "description": "Local development server"
+        }
+    ],
+    "paths": {
+        "/api/v1/admin/activation-requests": {
+            "get": {
+                "tags": [
+                    "Admin Activations"
+                ],
+                "summary": "Get pending student activation requests",
+                "description": "Returns student activation requests that are waiting for admin approval.",
+                "operationId": "getPendingActivationRequests",
+                "responses": {
+                    "200": {
+                        "description": "Pending activation requests retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Admin access required"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/activation-requests/{subscription}/approve": {
+            "post": {
+                "tags": [
+                    "Admin Activations"
+                ],
+                "summary": "Approve a student activation request",
+                "description": "Approves a pending student activation request and activates its subscription and subscription code.",
+                "operationId": "approveStudentActivation",
+                "parameters": [
+                    {
+                        "name": "subscription",
+                        "in": "path",
+                        "description": "Subscription ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 3
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Student activation approved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Admin access required"
+                    },
+                    "404": {
+                        "description": "Subscription not found"
+                    },
+                    "422": {
+                        "description": "Activation request has already been processed"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/activation-requests/{subscription}/cancel": {
+            "post": {
+                "tags": [
+                    "Admin Activations"
+                ],
+                "summary": "Cancel a student activation request",
+                "description": "Rejects a pending student activation request. The subscription becomes cancelled and the subscription code becomes rejected.",
+                "operationId": "cancelStudentActivation",
+                "parameters": [
+                    {
+                        "name": "subscription",
+                        "in": "path",
+                        "description": "Subscription ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 3
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Student activation request cancelled successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Admin access required"
+                    },
+                    "404": {
+                        "description": "Subscription not found"
+                    },
+                    "422": {
+                        "description": "Activation request has already been processed"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/approved-students": {
+            "get": {
+                "tags": [
+                    "Admin Activations"
+                ],
+                "summary": "Get approved students",
+                "description": "Returns students who have at least one approved subscription.",
+                "operationId": "getApprovedStudents",
+                "responses": {
+                    "200": {
+                        "description": "Approved students retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Admin access required"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/subscriptions/{subscription}/deactivate": {
+            "post": {
+                "tags": [
+                    "Admin Activations"
+                ],
+                "summary": "Deactivate an active subscription",
+                "description": "Deactivates an active student subscription.",
+                "operationId": "deactivateSubscription",
+                "parameters": [
+                    {
+                        "name": "subscription",
+                        "in": "path",
+                        "description": "Subscription ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 3
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Subscription deactivated successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Admin access required"
+                    },
+                    "404": {
+                        "description": "Subscription not found"
+                    },
+                    "422": {
+                        "description": "Subscription cannot be deactivated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/subscriptions/{subscription}/reset-device": {
+            "post": {
+                "tags": [
+                    "Admin Devices"
+                ],
+                "summary": "Reset the trusted device for a subscription",
+                "description": "Deactivates the current trusted device so the student can register a new device on the next login.",
+                "operationId": "resetTrustedDevice",
+                "parameters": [
+                    {
+                        "name": "subscription",
+                        "in": "path",
+                        "description": "Subscription ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 3
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Trusted device reset successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Admin access required"
+                    },
+                    "422": {
+                        "description": "No active trusted device"
+                    },
+                    "404": {
+                        "description": "Subscription not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/exams": {
+            "get": {
+                "tags": [
+                    "Admin Exams"
+                ],
+                "summary": "Get all exams",
+                "operationId": "adminExamsIndex",
+                "responses": {
+                    "200": {
+                        "description": "Exams retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Admin Exams"
+                ],
+                "summary": "Create exam",
+                "operationId": "adminExamsStore",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "lesson_id",
+                                    "title",
+                                    "passing_percentage"
+                                ],
+                                "properties": {
+                                    "lesson_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "title": {
+                                        "type": "string",
+                                        "example": "اختبار الدرس الأول"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "اختبار على محتوى الدرس",
+                                        "nullable": true
+                                    },
+                                    "duration_minutes": {
+                                        "type": "integer",
+                                        "example": 20,
+                                        "nullable": true
+                                    },
+                                    "passing_percentage": {
+                                        "type": "integer",
+                                        "example": 60,
+                                        "maximum": 100,
+                                        "minimum": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Exam created successfully"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/exams/{exam}": {
+            "get": {
+                "tags": [
+                    "Admin Exams"
+                ],
+                "summary": "Get exam details",
+                "operationId": "adminExamsShow",
+                "parameters": [
+                    {
+                        "name": "exam",
+                        "in": "path",
+                        "description": "Exam ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Exam retrieved successfully"
+                    },
+                    "404": {
+                        "description": "Exam not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Admin Exams"
+                ],
+                "summary": "Update exam",
+                "operationId": "adminExamsUpdate",
+                "parameters": [
+                    {
+                        "name": "exam",
+                        "in": "path",
+                        "description": "Exam ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "example": "اختبار الدرس الأول"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "اختبار على محتوى الدرس",
+                                        "nullable": true
+                                    },
+                                    "duration_minutes": {
+                                        "type": "integer",
+                                        "example": 20,
+                                        "nullable": true
+                                    },
+                                    "passing_percentage": {
+                                        "type": "integer",
+                                        "example": 60,
+                                        "maximum": 100,
+                                        "minimum": 1
+                                    },
+                                    "is_active": {
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Exam updated successfully"
+                    },
+                    "404": {
+                        "description": "Exam not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Admin Exams"
+                ],
+                "summary": "Delete exam",
+                "operationId": "adminExamsDestroy",
+                "parameters": [
+                    {
+                        "name": "exam",
+                        "in": "path",
+                        "description": "Exam ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Exam deleted successfully"
+                    },
+                    "404": {
+                        "description": "Exam not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/exams/{exam}/questions": {
+            "post": {
+                "tags": [
+                    "Admin Exams"
+                ],
+                "summary": "Add question to exam",
+                "description": "Create a new question inside an existing exam. The sort order is generated automatically.",
+                "operationId": "adminExamQuestionStore",
+                "parameters": [
+                    {
+                        "name": "exam",
+                        "in": "path",
+                        "description": "Exam ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "requestBody": {
+                    "description": "Question data",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "question_text",
+                                    "points"
+                                ],
+                                "properties": {
+                                    "question_text": {
+                                        "description": "The question text",
+                                        "type": "string",
+                                        "example": "ما هو ناتج 2 + 2؟"
+                                    },
+                                    "points": {
+                                        "description": "Number of points for this question",
+                                        "type": "integer",
+                                        "example": 1,
+                                        "minimum": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Question created successfully"
+                    },
+                    "404": {
+                        "description": "Exam not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/questions/{question}": {
+            "put": {
+                "tags": [
+                    "Admin Exams"
+                ],
+                "summary": "Update question",
+                "operationId": "adminQuestionUpdate",
+                "parameters": [
+                    {
+                        "name": "question",
+                        "in": "path",
+                        "description": "Question ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "question_text": {
+                                        "type": "string",
+                                        "example": "ما هو ناتج 2 + 2؟"
+                                    },
+                                    "points": {
+                                        "type": "integer",
+                                        "example": 1,
+                                        "minimum": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Question updated successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Admin Exams"
+                ],
+                "summary": "Delete question",
+                "operationId": "adminQuestionDestroy",
+                "parameters": [
+                    {
+                        "name": "question",
+                        "in": "path",
+                        "description": "Question ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Question deleted successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/questions/{question}/options": {
+            "post": {
+                "tags": [
+                    "Admin Exams"
+                ],
+                "summary": "Add option to question",
+                "description": "Create an option. The sort order is generated automatically and each question can have only one correct option.",
+                "operationId": "adminQuestionOptionStore",
+                "parameters": [
+                    {
+                        "name": "question",
+                        "in": "path",
+                        "description": "Question ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "option_text",
+                                    "is_correct"
+                                ],
+                                "properties": {
+                                    "option_text": {
+                                        "description": "Option text",
+                                        "type": "string",
+                                        "example": "4"
+                                    },
+                                    "is_correct": {
+                                        "description": "Whether this option is the correct answer",
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Option created successfully"
+                    },
+                    "404": {
+                        "description": "Question not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/options/{option}": {
+            "put": {
+                "tags": [
+                    "Admin Exams"
+                ],
+                "summary": "Update option",
+                "operationId": "adminOptionUpdate",
+                "parameters": [
+                    {
+                        "name": "option",
+                        "in": "path",
+                        "description": "Option ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "option_text": {
+                                        "type": "string",
+                                        "example": "4"
+                                    },
+                                    "is_correct": {
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Option updated successfully"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Admin Exams"
+                ],
+                "summary": "Delete option",
+                "operationId": "adminOptionDestroy",
+                "parameters": [
+                    {
+                        "name": "option",
+                        "in": "path",
+                        "description": "Option ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Option deleted successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/lessons": {
+            "get": {
+                "tags": [
+                    "Admin Lessons"
+                ],
+                "summary": "Get all lessons",
+                "description": "Get all lessons.",
+                "operationId": "adminLessonsIndex",
+                "parameters": [
+                    {
+                        "name": "grade_id",
+                        "in": "query",
+                        "description": "Filter lessons by grade ID",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lessons retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Admin Lessons"
+                ],
+                "summary": "Create a new lesson",
+                "description": "Create a new lesson.",
+                "operationId": "adminLessonsStore",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "grade_id",
+                                    "section_name",
+                                    "title",
+                                    "video_url"
+                                ],
+                                "properties": {
+                                    "grade_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "section_name": {
+                                        "type": "string",
+                                        "example": "الجبر"
+                                    },
+                                    "title": {
+                                        "type": "string",
+                                        "example": "المصفوفات"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "شرح درس المصفوفات",
+                                        "nullable": true
+                                    },
+                                    "video_url": {
+                                        "type": "string",
+                                        "format": "uri",
+                                        "example": "https://www.youtube.com/watch?v=XXXXXXXXXXX"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Lesson created successfully"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/lessons/{lesson}": {
+            "delete": {
+                "tags": [
+                    "Admin Lessons"
+                ],
+                "summary": "Delete a lesson",
+                "description": "Delete a lesson.",
+                "operationId": "adminLessonsDestroy",
+                "parameters": [
+                    {
+                        "name": "lesson",
+                        "in": "path",
+                        "description": "Lesson ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lesson deleted successfully"
+                    },
+                    "404": {
+                        "description": "Lesson not found"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/students": {
+            "get": {
+                "tags": [
+                    "Admin Students"
+                ],
+                "summary": "Get all students",
+                "description": "Returns a paginated list of all students.",
+                "operationId": "getAllStudents",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Students retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Admin access required"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Admin Students"
+                ],
+                "summary": "Create student manually by admin",
+                "description": "Creates a student, enrollment, active subscription, and an approved subscription code. No approval is required when the student is created by an admin.",
+                "operationId": "createStudentByAdmin",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "first_name",
+                                    "last_name",
+                                    "phone",
+                                    "parent_phone",
+                                    "grade_id"
+                                ],
+                                "properties": {
+                                    "first_name": {
+                                        "type": "string",
+                                        "example": "Ahmed"
+                                    },
+                                    "last_name": {
+                                        "type": "string",
+                                        "example": "Ali"
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "01012345678"
+                                    },
+                                    "parent_phone": {
+                                        "type": "string",
+                                        "example": "01112345678"
+                                    },
+                                    "grade_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "start_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-09-18",
+                                        "nullable": true
+                                    },
+                                    "end_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2027-09-18",
+                                        "nullable": true
+                                    },
+                                    "code_expires_at": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2027-09-18",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Student created successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Admin access required"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/students/{student}": {
+            "get": {
+                "tags": [
+                    "Admin Students"
+                ],
+                "summary": "Get student details",
+                "description": "Returns the details of a specific student.",
+                "operationId": "getStudentByAdmin",
+                "parameters": [
+                    {
+                        "name": "student",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Student retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Admin access required"
+                    },
+                    "404": {
+                        "description": "Student not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Admin Students"
+                ],
+                "summary": "Update student",
+                "description": "Updates the basic information of a student.",
+                "operationId": "updateStudentByAdmin",
+                "parameters": [
+                    {
+                        "name": "student",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "first_name",
+                                    "last_name",
+                                    "phone",
+                                    "parent_phone",
+                                    "grade_id"
+                                ],
+                                "properties": {
+                                    "first_name": {
+                                        "type": "string",
+                                        "example": "Ahmed"
+                                    },
+                                    "last_name": {
+                                        "type": "string",
+                                        "example": "Ali"
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "01012345678"
+                                    },
+                                    "parent_phone": {
+                                        "type": "string",
+                                        "example": "01112345678"
+                                    },
+                                    "grade_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Student updated successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Admin access required"
+                    },
+                    "404": {
+                        "description": "Student not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/subscription-codes": {
+            "get": {
+                "tags": [
+                    "Admin Subscription Codes"
+                ],
+                "summary": "Get student subscription codes by grade",
+                "description": "Returns student names and their approved active subscription codes for a specific grade.",
+                "operationId": "getSubscriptionCodesByGrade",
+                "parameters": [
+                    {
+                        "name": "grade_id",
+                        "in": "query",
+                        "description": "Grade ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Subscription codes retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Admin access required"
+                    },
+                    "404": {
+                        "description": "Grade not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/auth/login": {
+            "post": {
+                "tags": [
+                    "Admin Authentication"
+                ],
+                "summary": "Admin login",
+                "description": "Authenticate an active admin using email and password and issue a Sanctum token.",
+                "operationId": "adminLogin",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "admin@example.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "Admin@12345"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Admin logged in successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Admin logged in successfully."
+                                        },
+                                        "token": {
+                                            "type": "string",
+                                            "example": "1|abcdefghijklmnopqrstuvwxyz"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid credentials or inactive account"
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/auth/logout": {
+            "post": {
+                "tags": [
+                    "Admin Authentication"
+                ],
+                "summary": "Admin logout",
+                "description": "Logout the authenticated admin by revoking the current Sanctum token.",
+                "operationId": "adminLogout",
+                "responses": {
+                    "200": {
+                        "description": "Admin logged out successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Admin logged out successfully."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "User is not authorized to access admin endpoints"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/auth/activate": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Submit a student activation request",
+                "description": "Creates a student, enrollment, subscription, and subscription code. The code remains hidden until admin approval.",
+                "operationId": "activateStudentAccount",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "first_name",
+                                    "last_name",
+                                    "phone",
+                                    "parent_phone",
+                                    "grade_id"
+                                ],
+                                "properties": {
+                                    "first_name": {
+                                        "type": "string",
+                                        "example": "Ahmed"
+                                    },
+                                    "last_name": {
+                                        "type": "string",
+                                        "example": "Ali"
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "01012345678"
+                                    },
+                                    "parent_phone": {
+                                        "type": "string",
+                                        "example": "01112345678"
+                                    },
+                                    "grade_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Activation request created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Your activation request has been submitted successfully. Please wait for admin approval."
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "example": "pending"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/login": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Student login",
+                "description": "Logs in an approved student using their subscription code and automatically detects the device information from the request.",
+                "operationId": "studentLogin",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "subscription_code",
+                                    "device_identifier"
+                                ],
+                                "properties": {
+                                    "subscription_code": {
+                                        "type": "string",
+                                        "example": "A7K9P2X4LM"
+                                    },
+                                    "device_identifier": {
+                                        "description": "Unique device identifier generated by the client application.",
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "example": "8f4c2e91-7a32-4d8b-91a2-5e6f3c8d1204"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login successful"
+                    },
+                    "401": {
+                        "description": "Invalid subscription code"
+                    },
+                    "403": {
+                        "description": "Subscription is not approved, active, or another device is already trusted"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/logout": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Student logout",
+                "description": "Logs out the authenticated student by deleting the current Sanctum token. The trusted device remains registered.",
+                "operationId": "studentLogout",
+                "responses": {
+                    "200": {
+                        "description": "Logout successful"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/student/exams/{exam}": {
+            "get": {
+                "tags": [
+                    "Student Exams"
+                ],
+                "summary": "Get exam questions",
+                "description": "The exam can only be accessed after all active videos in the lesson are completed.",
+                "operationId": "studentExamShow",
+                "parameters": [
+                    {
+                        "name": "exam",
+                        "in": "path",
+                        "description": "Exam ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Exam retrieved successfully"
+                    },
+                    "403": {
+                        "description": "Exam is locked"
+                    },
+                    "404": {
+                        "description": "Exam not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/student/exams/{exam}/start": {
+            "post": {
+                "tags": [
+                    "Student Exams"
+                ],
+                "summary": "Start an exam",
+                "description": "Starts an exam after all active lesson videos have been completed.",
+                "operationId": "studentExamStart",
+                "parameters": [
+                    {
+                        "name": "exam",
+                        "in": "path",
+                        "description": "Exam ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Exam started successfully"
+                    },
+                    "403": {
+                        "description": "Exam is locked"
+                    },
+                    "404": {
+                        "description": "Exam not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/student/exams/{exam}/submit": {
+            "post": {
+                "tags": [
+                    "Student Exams"
+                ],
+                "summary": "Submit exam answers",
+                "description": "All questions must be answered. The backend calculates the score and determines whether the student passed.",
+                "operationId": "studentExamSubmit",
+                "parameters": [
+                    {
+                        "name": "exam",
+                        "in": "path",
+                        "description": "Exam ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "attempt_id",
+                                    "answers"
+                                ],
+                                "properties": {
+                                    "attempt_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "answers": {
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "question_id",
+                                                "option_id"
+                                            ],
+                                            "properties": {
+                                                "question_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "option_id": {
+                                                    "type": "integer",
+                                                    "example": 3
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Exam submitted successfully"
+                    },
+                    "403": {
+                        "description": "Exam is locked"
+                    },
+                    "404": {
+                        "description": "Exam not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/student/lessons": {
+            "get": {
+                "tags": [
+                    "Student Lessons"
+                ],
+                "summary": "Get student lessons with learning progress",
+                "operationId": "studentLessonsIndex",
+                "responses": {
+                    "200": {
+                        "description": "Lessons retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/student/profile": {
+            "get": {
+                "tags": [
+                    "Student Profile"
+                ],
+                "summary": "Get student profile",
+                "description": "Returns the authenticated student profile, active subscription, grade, and current trusted device.",
+                "operationId": "getStudentProfile",
+                "responses": {
+                    "200": {
+                        "description": "Student profile retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "The current device is not trusted"
+                    },
+                    "422": {
+                        "description": "No active subscription found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/student/videos/{video}": {
+            "get": {
+                "tags": [
+                    "Student Videos"
+                ],
+                "summary": "Get student video",
+                "description": "Get a single video with its access status.",
+                "operationId": "studentVideoShow",
+                "parameters": [
+                    {
+                        "name": "video",
+                        "in": "path",
+                        "description": "Video ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Video retrieved successfully"
+                    },
+                    "403": {
+                        "description": "Video is locked"
+                    },
+                    "404": {
+                        "description": "Video not found"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/student/videos/{video}/progress": {
+            "post": {
+                "tags": [
+                    "Student Videos"
+                ],
+                "summary": "Update video progress",
+                "description": "Update video watching progress.",
+                "operationId": "studentVideoProgress",
+                "parameters": [
+                    {
+                        "name": "video",
+                        "in": "path",
+                        "description": "Video ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "current_position_seconds",
+                                    "watched_duration_seconds",
+                                    "completion_percentage"
+                                ],
+                                "properties": {
+                                    "current_position_seconds": {
+                                        "type": "integer",
+                                        "example": 120,
+                                        "minimum": 0
+                                    },
+                                    "watched_duration_seconds": {
+                                        "type": "integer",
+                                        "example": 120,
+                                        "minimum": 0
+                                    },
+                                    "completion_percentage": {
+                                        "type": "integer",
+                                        "example": 90,
+                                        "maximum": 100,
+                                        "minimum": 0
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Video progress updated successfully"
+                    },
+                    "403": {
+                        "description": "Video is locked"
+                    },
+                    "404": {
+                        "description": "Video not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "sanctum": {
+                "type": "http",
+                "description": "Enter the Sanctum token returned by the admin login.",
+                "bearerFormat": "Sanctum Token",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Admin Exams",
+            "description": "Admin exam, question and option management endpoints"
+        },
+        {
+            "name": "Admin Lessons",
+            "description": "Admin lesson management endpoints"
+        },
+        {
+            "name": "Student Exams",
+            "description": "Student exam access, start and submission endpoints"
+        },
+        {
+            "name": "Student Lessons",
+            "description": "Student lesson endpoints"
+        },
+        {
+            "name": "Student Videos",
+            "description": "Student video progress and access endpoints"
+        },
+        {
+            "name": "Admin Activations",
+            "description": "Admin Activations"
+        },
+        {
+            "name": "Admin Devices",
+            "description": "Admin Devices"
+        },
+        {
+            "name": "Admin Students",
+            "description": "Admin Students"
+        },
+        {
+            "name": "Admin Subscription Codes",
+            "description": "Admin Subscription Codes"
+        },
+        {
+            "name": "Admin Authentication",
+            "description": "Admin Authentication"
+        },
+        {
+            "name": "Authentication",
+            "description": "Authentication"
+        },
+        {
+            "name": "Student Profile",
+            "description": "Student Profile"
+        }
+    ]
+}
