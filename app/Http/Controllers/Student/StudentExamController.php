@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Models\Exam;
 use App\Models\ExamAttempt;
+use App\Models\Student;
 use App\Services\LearningProgressService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,7 +20,125 @@ class StudentExamController extends Controller
 {
     public function __construct(
         private LearningProgressService $learningProgressService
-    ) {
+    ) {}
+
+    /**
+     * List all active exams for the student's grade with progress and unlock status.
+     */
+    #[OA\Get(
+        path: '/api/v1/student/exams',
+        operationId: 'studentExamsIndex',
+        summary: 'Get all exams for student\'s grade',
+        tags: ['Student Exams'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Exams retrieved successfully'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+        ]
+    )]
+    public function index(Request $request): JsonResponse
+    {
+        /** @var Student $student */
+        $student = $request->user();
+        $student->loadMissing('grade');
+
+        if (! $student->grade_id) {
+            return response()->json([
+                'success' => true,
+                'message' => 'No grade assigned to this student.',
+                'data' => [
+                    'exams' => [],
+                ],
+            ]);
+        }
+
+        $subscription = $this->learningProgressService
+            ->getActiveSubscription($student->id);
+
+        if (! $subscription) {
+            return response()->json([
+                'success' => true,
+                'message' => 'No active subscription found.',
+                'data' => [
+                    'exams' => [],
+                ],
+            ]);
+        }
+
+        $exams = Exam::query()
+            ->where('is_active', true)
+            ->whereHas('lesson.section', function ($query) use ($student) {
+                $query->where('grade_id', $student->grade_id)
+                    ->where('is_active', true);
+            })
+            ->with([
+                'lesson.section:id,grade_id,name,sort_order',
+            ])
+            ->withCount('questions')
+            ->get();
+
+        $studentAttempts = ExamAttempt::query()
+            ->where('student_id', $student->id)
+            ->where('subscription_id', $subscription->id)
+            ->whereNotNull('submitted_at')
+            ->get()
+            ->groupBy('exam_id');
+
+        $examList = $exams->map(function (Exam $exam) use ($student, $subscription, $studentAttempts) {
+            $isUnlocked = $exam->lesson
+                ? $this->learningProgressService->isExamUnlocked(
+                    $student->id,
+                    $subscription->id,
+                    $exam->lesson
+                )
+                : false;
+
+            $attempts = $studentAttempts->get($exam->id, collect());
+            $bestAttempt = $attempts->sortByDesc('score')->first();
+            $latestAttempt = $attempts->sortByDesc('id')->first();
+            $hasPassed = $attempts->where('is_passed', true)->isNotEmpty();
+
+            return [
+                'id' => $exam->id,
+                'title' => $exam->title,
+                'lesson_id' => $exam->lesson_id,
+                'lesson_title' => $exam->lesson?->title,
+                'section_name' => $exam->lesson?->section?->name,
+                'duration_minutes' => $exam->duration_minutes,
+                'passing_percentage' => $exam->passing_percentage,
+                'questions_count' => $exam->questions_count,
+                'is_unlocked' => $isUnlocked,
+                'is_passed' => $hasPassed,
+                'attempts_count' => $attempts->count(),
+                'best_score' => $bestAttempt ? [
+                    'score' => $bestAttempt->score,
+                    'total_score' => $bestAttempt->total_score,
+                    'percentage' => $bestAttempt->percentage,
+                    'is_passed' => $bestAttempt->is_passed,
+                ] : null,
+                'latest_attempt' => $latestAttempt ? [
+                    'id' => $latestAttempt->id,
+                    'score' => $latestAttempt->score,
+                    'total_score' => $latestAttempt->total_score,
+                    'percentage' => $latestAttempt->percentage,
+                    'is_passed' => $latestAttempt->is_passed,
+                    'submitted_at' => $latestAttempt->submitted_at?->toIso8601String(),
+                ] : null,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Exams retrieved successfully.',
+            'data' => [
+                'grade' => [
+                    'id' => $student->grade->id,
+                    'name' => $student->grade->name,
+                ],
+                'exams' => $examList,
+            ],
+        ]);
     }
 
     #[OA\Get(
@@ -70,7 +189,7 @@ class StudentExamController extends Controller
             ])
             ->find($exam);
 
-        if (!$examModel) {
+        if (! $examModel) {
             return response()->json([
                 'success' => false,
                 'message' => 'Exam not found.',
@@ -80,8 +199,8 @@ class StudentExamController extends Controller
         $student->loadMissing('grade');
 
         if (
-            !$student->grade_id ||
-            !$examModel->lesson?->section ||
+            ! $student->grade_id ||
+            ! $examModel->lesson?->section ||
             $examModel->lesson->section->grade_id !== $student->grade_id
         ) {
             return response()->json([
@@ -93,7 +212,7 @@ class StudentExamController extends Controller
         $subscription = $this->learningProgressService
             ->getActiveSubscription($student->id);
 
-        if (!$subscription) {
+        if (! $subscription) {
             return response()->json([
                 'success' => false,
                 'message' => 'No active subscription found.',
@@ -107,7 +226,7 @@ class StudentExamController extends Controller
                 $examModel->lesson
             );
 
-        if (!$isUnlocked) {
+        if (! $isUnlocked) {
             return response()->json([
                 'success' => false,
                 'message' => 'This exam is locked. Complete all lesson videos first.',
@@ -165,7 +284,7 @@ class StudentExamController extends Controller
             ])
             ->find($exam);
 
-        if (!$examModel) {
+        if (! $examModel) {
             return response()->json([
                 'success' => false,
                 'message' => 'Exam not found.',
@@ -175,8 +294,8 @@ class StudentExamController extends Controller
         $student->loadMissing('grade');
 
         if (
-            !$student->grade_id ||
-            !$examModel->lesson?->section ||
+            ! $student->grade_id ||
+            ! $examModel->lesson?->section ||
             $examModel->lesson->section->grade_id !== $student->grade_id
         ) {
             return response()->json([
@@ -188,14 +307,14 @@ class StudentExamController extends Controller
         $subscription = $this->learningProgressService
             ->getActiveSubscription($student->id);
 
-        if (!$subscription) {
+        if (! $subscription) {
             return response()->json([
                 'success' => false,
                 'message' => 'No active subscription found.',
             ], 403);
         }
 
-        if (!$this->learningProgressService->isExamUnlocked(
+        if (! $this->learningProgressService->isExamUnlocked(
             $student->id,
             $subscription->id,
             $examModel->lesson
@@ -353,7 +472,7 @@ class StudentExamController extends Controller
             ])
             ->find($exam);
 
-        if (!$examModel) {
+        if (! $examModel) {
             return response()->json([
                 'success' => false,
                 'message' => 'Exam not found.',
@@ -363,8 +482,8 @@ class StudentExamController extends Controller
         $student->loadMissing('grade');
 
         if (
-            !$student->grade_id ||
-            !$examModel->lesson?->section ||
+            ! $student->grade_id ||
+            ! $examModel->lesson?->section ||
             $examModel->lesson->section->grade_id !== $student->grade_id
         ) {
             return response()->json([
@@ -376,14 +495,14 @@ class StudentExamController extends Controller
         $subscription = $this->learningProgressService
             ->getActiveSubscription($student->id);
 
-        if (!$subscription) {
+        if (! $subscription) {
             return response()->json([
                 'success' => false,
                 'message' => 'No active subscription found.',
             ], 403);
         }
 
-        if (!$this->learningProgressService->isExamUnlocked(
+        if (! $this->learningProgressService->isExamUnlocked(
             $student->id,
             $subscription->id,
             $examModel->lesson
@@ -401,7 +520,7 @@ class StudentExamController extends Controller
             ->where('exam_id', $examModel->id)
             ->first();
 
-        if (!$attempt) {
+        if (! $attempt) {
             return response()->json([
                 'success' => false,
                 'message' => 'Exam attempt not found.',
@@ -455,7 +574,7 @@ class StudentExamController extends Controller
 
             $question = $questions->get($questionId);
 
-            if (!$question) {
+            if (! $question) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Invalid question submitted.',
@@ -465,7 +584,7 @@ class StudentExamController extends Controller
             $optionBelongsToQuestion = $question->options
                 ->contains('id', $optionId);
 
-            if (!$optionBelongsToQuestion) {
+            if (! $optionBelongsToQuestion) {
                 return response()->json([
                     'success' => false,
                     'message' => 'The selected option does not belong to the selected question.',
@@ -483,6 +602,7 @@ class StudentExamController extends Controller
 
         $score = 0;
         $totalScore = 0;
+        $answersToSave = [];
 
         foreach ($questions as $question) {
             $totalScore += (int) $question->points;
@@ -493,9 +613,17 @@ class StudentExamController extends Controller
             $selectedOption = $question->options
                 ->firstWhere('id', $selectedOptionId);
 
-            if ($selectedOption && $selectedOption->is_correct) {
+            $isCorrect = $selectedOption && $selectedOption->is_correct;
+
+            if ($isCorrect) {
                 $score += (int) $question->points;
             }
+
+            $answersToSave[] = [
+                'question_id' => $question->id,
+                'option_id' => $selectedOptionId,
+                'is_correct' => (bool) $isCorrect,
+            ];
         }
 
         $percentage = $totalScore > 0
@@ -509,7 +637,8 @@ class StudentExamController extends Controller
             $score,
             $totalScore,
             $percentage,
-            $isPassed
+            $isPassed,
+            $answersToSave
         ) {
             $attempt->update([
                 'score' => $score,
@@ -518,6 +647,11 @@ class StudentExamController extends Controller
                 'is_passed' => $isPassed,
                 'submitted_at' => now(),
             ]);
+
+            $attempt->answers()->delete();
+            foreach ($answersToSave as $answerData) {
+                $attempt->answers()->create($answerData);
+            }
         });
 
         return response()->json([
@@ -533,6 +667,91 @@ class StudentExamController extends Controller
                 'passing_percentage' => (int) $examModel->passing_percentage,
                 'is_passed' => $isPassed,
                 'next_lesson_unlocked' => $isPassed,
+            ],
+        ]);
+    }
+
+    /**
+     * Get student attempts history for a specific exam.
+     */
+    #[OA\Get(
+        path: '/api/v1/student/exams/{exam}/attempts',
+        operationId: 'studentExamAttempts',
+        summary: 'Get attempts history for an exam',
+        tags: ['Student Exams'],
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(
+                name: 'exam',
+                description: 'Exam ID',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer'),
+                example: 1
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Attempts retrieved successfully'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+            new OA\Response(response: 404, description: 'Exam not found'),
+        ]
+    )]
+    public function attempts(Request $request, int $exam): JsonResponse
+    {
+        /** @var Student $student */
+        $student = $request->user();
+
+        $examModel = Exam::query()
+            ->where('is_active', true)
+            ->with('lesson.section')
+            ->find($exam);
+
+        if (! $examModel) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Exam not found.',
+            ], 404);
+        }
+
+        if (
+            ! $student->grade_id ||
+            ! $examModel->lesson?->section ||
+            $examModel->lesson->section->grade_id !== $student->grade_id
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not allowed to view this exam attempts.',
+            ], 403);
+        }
+
+        $subscription = $this->learningProgressService
+            ->getActiveSubscription($student->id);
+
+        if (! $subscription) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active subscription found.',
+            ], 403);
+        }
+
+        $attempts = ExamAttempt::query()
+            ->where('student_id', $student->id)
+            ->where('exam_id', $examModel->id)
+            ->where('subscription_id', $subscription->id)
+            ->orderByDesc('id')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Exam attempts retrieved successfully.',
+            'data' => [
+                'exam' => [
+                    'id' => $examModel->id,
+                    'title' => $examModel->title,
+                    'passing_percentage' => $examModel->passing_percentage,
+                ],
+                'attempts' => $attempts,
             ],
         ]);
     }

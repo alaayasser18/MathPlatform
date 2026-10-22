@@ -890,6 +890,574 @@
                 ]
             }
         },
+        "/api/v1/admin/lessons/{lesson}/quiz/questions": {
+            "post": {
+                "tags": [
+                    "Admin Lessons"
+                ],
+                "summary": "Save quiz questions for a lesson",
+                "description": "Creates or updates the quiz for the specified lesson and saves questions with their multiple-choice options.",
+                "operationId": "adminLessonQuizQuestionsStore",
+                "parameters": [
+                    {
+                        "name": "lesson",
+                        "in": "path",
+                        "description": "Lesson ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "requestBody": {
+                    "description": "Quiz questions and options data",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "questions"
+                                ],
+                                "properties": {
+                                    "title": {
+                                        "description": "Optional custom title for the quiz",
+                                        "type": "string",
+                                        "example": "اختبار الدرس الأول"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "اختبار تجريبي",
+                                        "nullable": true
+                                    },
+                                    "duration_minutes": {
+                                        "type": "integer",
+                                        "example": 20,
+                                        "nullable": true
+                                    },
+                                    "passing_percentage": {
+                                        "type": "integer",
+                                        "example": 60,
+                                        "maximum": 100,
+                                        "minimum": 1
+                                    },
+                                    "questions": {
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "question_text",
+                                                "points",
+                                                "options"
+                                            ],
+                                            "properties": {
+                                                "question_text": {
+                                                    "type": "string",
+                                                    "example": "ما هو ناتج 2 + 2؟"
+                                                },
+                                                "points": {
+                                                    "type": "integer",
+                                                    "example": 1,
+                                                    "minimum": 1
+                                                },
+                                                "sort_order": {
+                                                    "type": "integer",
+                                                    "example": 1,
+                                                    "nullable": true
+                                                },
+                                                "options": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "required": [
+                                                            "option_text",
+                                                            "is_correct"
+                                                        ],
+                                                        "properties": {
+                                                            "option_text": {
+                                                                "type": "string",
+                                                                "example": "4"
+                                                            },
+                                                            "is_correct": {
+                                                                "type": "boolean",
+                                                                "example": true
+                                                            },
+                                                            "sort_order": {
+                                                                "type": "integer",
+                                                                "example": 1,
+                                                                "nullable": true
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Quiz questions saved successfully"
+                    },
+                    "404": {
+                        "description": "Lesson not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/memos": {
+            "get": {
+                "tags": [
+                    "Admin Memos"
+                ],
+                "summary": "Get all memos",
+                "description": "List all memos, optionally filtered by grade.",
+                "operationId": "adminMemosIndex",
+                "parameters": [
+                    {
+                        "name": "grade_id",
+                        "in": "query",
+                        "description": "Filter memos by grade ID",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Memos retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Admin Memos"
+                ],
+                "summary": "Create a new memo (supports PDF file upload)",
+                "description": "Create a new memo with optional PDF and cover image upload.",
+                "operationId": "adminMemosStore",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "grade_id",
+                                    "title"
+                                ],
+                                "properties": {
+                                    "grade_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "title": {
+                                        "type": "string",
+                                        "example": "مذكرة الجبر للصف الثالث الثانوي"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "pdf_file": {
+                                        "description": "PDF file to upload",
+                                        "type": "string",
+                                        "format": "binary",
+                                        "nullable": true
+                                    },
+                                    "file_url": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "cover_image": {
+                                        "description": "Cover image file",
+                                        "type": "string",
+                                        "format": "binary",
+                                        "nullable": true
+                                    },
+                                    "cover_image_url": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "file_size": {
+                                        "type": "string",
+                                        "example": "18.4 MB",
+                                        "nullable": true
+                                    },
+                                    "pages": {
+                                        "type": "integer",
+                                        "example": 140,
+                                        "nullable": true
+                                    },
+                                    "year": {
+                                        "type": "string",
+                                        "example": "2026 / 2027",
+                                        "nullable": true
+                                    },
+                                    "features": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "nullable": true
+                                    },
+                                    "sort_order": {
+                                        "type": "integer",
+                                        "example": 0,
+                                        "nullable": true
+                                    },
+                                    "is_active": {
+                                        "type": "boolean",
+                                        "example": true,
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "grade_id",
+                                    "title"
+                                ],
+                                "properties": {
+                                    "grade_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "title": {
+                                        "type": "string",
+                                        "example": "مذكرة الجبر للصف الثالث الثانوي"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "file_url": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "file_size": {
+                                        "type": "string",
+                                        "example": "18.4 MB",
+                                        "nullable": true
+                                    },
+                                    "pages": {
+                                        "type": "integer",
+                                        "example": 140,
+                                        "nullable": true
+                                    },
+                                    "year": {
+                                        "type": "string",
+                                        "example": "2026 / 2027",
+                                        "nullable": true
+                                    },
+                                    "cover_image_url": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "features": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "nullable": true
+                                    },
+                                    "sort_order": {
+                                        "type": "integer",
+                                        "example": 0,
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Memo created successfully"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/memos/{memo}": {
+            "get": {
+                "tags": [
+                    "Admin Memos"
+                ],
+                "summary": "Get a memo",
+                "description": "Show a single memo.",
+                "operationId": "adminMemosShow",
+                "parameters": [
+                    {
+                        "name": "memo",
+                        "in": "path",
+                        "description": "Memo ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Memo retrieved successfully"
+                    },
+                    "404": {
+                        "description": "Memo not found"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Admin Memos"
+                ],
+                "summary": "Update a memo",
+                "description": "Update an existing memo (supports PDF file and cover image replacement).",
+                "operationId": "adminMemosUpdate",
+                "parameters": [
+                    {
+                        "name": "memo",
+                        "in": "path",
+                        "description": "Memo ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "grade_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "title": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "pdf_file": {
+                                        "type": "string",
+                                        "format": "binary",
+                                        "nullable": true
+                                    },
+                                    "file_url": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "cover_image": {
+                                        "type": "string",
+                                        "format": "binary",
+                                        "nullable": true
+                                    },
+                                    "cover_image_url": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "file_size": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "pages": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "year": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "features": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "nullable": true
+                                    },
+                                    "sort_order": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "is_active": {
+                                        "type": "boolean",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "grade_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "title": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "file_url": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "file_size": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "pages": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "year": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "cover_image_url": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "features": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "nullable": true
+                                    },
+                                    "sort_order": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "is_active": {
+                                        "type": "boolean",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Memo updated successfully"
+                    },
+                    "404": {
+                        "description": "Memo not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Admin Memos"
+                ],
+                "summary": "Delete a memo",
+                "description": "Delete a memo and its associated files.",
+                "operationId": "adminMemosDestroy",
+                "parameters": [
+                    {
+                        "name": "memo",
+                        "in": "path",
+                        "description": "Memo ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Memo deleted successfully"
+                    },
+                    "404": {
+                        "description": "Memo not found"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/v1/admin/students": {
             "get": {
                 "tags": [
@@ -1123,6 +1691,67 @@
                     },
                     "422": {
                         "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/students/{student}/lessons/{lesson}/quiz/answers": {
+            "get": {
+                "tags": [
+                    "Admin Students"
+                ],
+                "summary": "Get quiz answers of a student for a lesson",
+                "description": "Returns the answers and attempt details of a specific student on a specific lesson quiz.",
+                "operationId": "adminStudentLessonQuizAnswers",
+                "parameters": [
+                    {
+                        "name": "student",
+                        "in": "path",
+                        "description": "Student ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    },
+                    {
+                        "name": "lesson",
+                        "in": "path",
+                        "description": "Lesson ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    },
+                    {
+                        "name": "attempt_id",
+                        "in": "query",
+                        "description": "Optional attempt ID. If omitted, returns the latest submitted attempt.",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Quiz answers retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Admin access required"
+                    },
+                    "404": {
+                        "description": "Student, lesson, or quiz attempt not found"
                     }
                 },
                 "security": [
@@ -1435,6 +2064,32 @@
                 ]
             }
         },
+        "/api/v1/student/exams": {
+            "get": {
+                "tags": [
+                    "Student Exams"
+                ],
+                "summary": "Get all exams for student's grade",
+                "description": "List all active exams for the student's grade with progress and unlock status.",
+                "operationId": "studentExamsIndex",
+                "responses": {
+                    "200": {
+                        "description": "Exams retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/v1/student/exams/{exam}": {
             "get": {
                 "tags": [
@@ -1592,6 +2247,47 @@
                 ]
             }
         },
+        "/api/v1/student/exams/{exam}/attempts": {
+            "get": {
+                "tags": [
+                    "Student Exams"
+                ],
+                "summary": "Get attempts history for an exam",
+                "description": "Get student attempts history for a specific exam.",
+                "operationId": "studentExamAttempts",
+                "parameters": [
+                    {
+                        "name": "exam",
+                        "in": "path",
+                        "description": "Exam ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attempts retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Exam not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/v1/student/lessons": {
             "get": {
                 "tags": [
@@ -1614,13 +2310,213 @@
                 ]
             }
         },
+        "/api/v1/student/lessons/{lesson}": {
+            "get": {
+                "tags": [
+                    "Student Lessons"
+                ],
+                "summary": "Get details of a single lesson for student",
+                "description": "Show a single lesson with videos, materials, exam, and learning status.",
+                "operationId": "studentLessonsShow",
+                "parameters": [
+                    {
+                        "name": "lesson",
+                        "in": "path",
+                        "description": "Lesson ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lesson retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Access denied"
+                    },
+                    "404": {
+                        "description": "Lesson not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/student/materials/{material}/download": {
+            "get": {
+                "tags": [
+                    "Student Lessons"
+                ],
+                "summary": "Download lesson material file",
+                "description": "Download a lesson material PDF or document.",
+                "operationId": "studentMaterialsDownload",
+                "parameters": [
+                    {
+                        "name": "material",
+                        "in": "path",
+                        "description": "Material ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "File download initiated"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Access denied or lesson locked"
+                    },
+                    "404": {
+                        "description": "Material not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/student/lessons/{lesson}/quiz/answers": {
+            "get": {
+                "tags": [
+                    "Student Lessons"
+                ],
+                "summary": "Get student answers for a lesson quiz",
+                "description": "Returns the student answers, selected options, correct options, and results for a specific lesson quiz attempt.",
+                "operationId": "studentLessonQuizAnswers",
+                "parameters": [
+                    {
+                        "name": "lesson",
+                        "in": "path",
+                        "description": "Lesson ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    },
+                    {
+                        "name": "attempt_id",
+                        "in": "query",
+                        "description": "Optional specific attempt ID. If omitted, returns the latest submitted attempt.",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Quiz answers retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden / Subscription required"
+                    },
+                    "404": {
+                        "description": "Lesson, quiz, or attempt not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/student/memos": {
+            "get": {
+                "tags": [
+                    "Student Memos"
+                ],
+                "summary": "Get memos for the student's grade",
+                "description": "Return all active memos for the authenticated student's grade.",
+                "operationId": "studentMemosIndex",
+                "responses": {
+                    "200": {
+                        "description": "Memos retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Student access required"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/student/memos/{memo}/download": {
+            "get": {
+                "tags": [
+                    "Student Memos"
+                ],
+                "summary": "Download memo PDF booklet",
+                "description": "Download the memo PDF booklet for the student.",
+                "operationId": "studentMemosDownload",
+                "parameters": [
+                    {
+                        "name": "memo",
+                        "in": "path",
+                        "description": "Memo ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF file download initiated"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "No active subscription or wrong grade"
+                    },
+                    "404": {
+                        "description": "Memo not found or file missing"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/v1/student/profile": {
             "get": {
                 "tags": [
                     "Student Profile"
                 ],
                 "summary": "Get student profile",
-                "description": "Returns the authenticated student profile, active subscription, grade, and current trusted device.",
+                "description": "Returns the authenticated student profile, active subscription, grade, trusted device, and real academic metrics.",
                 "operationId": "getStudentProfile",
                 "responses": {
                     "200": {
@@ -1634,6 +2530,54 @@
                     },
                     "422": {
                         "description": "No active subscription found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Student Profile"
+                ],
+                "summary": "Update student profile",
+                "description": "Allows authenticated student to update editable personal details (first_name, last_name, parent_phone).",
+                "operationId": "updateStudentProfile",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "first_name": {
+                                        "type": "string",
+                                        "example": "أحمد"
+                                    },
+                                    "last_name": {
+                                        "type": "string",
+                                        "example": "محمد"
+                                    },
+                                    "parent_phone": {
+                                        "type": "string",
+                                        "example": "01012345678"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Profile updated successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "422": {
+                        "description": "Validation error"
                     }
                 },
                 "security": [
@@ -1779,12 +2723,20 @@
             "description": "Admin lesson management endpoints"
         },
         {
+            "name": "Admin Memos",
+            "description": "Admin memo (PDF booklet) management endpoints"
+        },
+        {
             "name": "Student Exams",
             "description": "Student exam access, start and submission endpoints"
         },
         {
             "name": "Student Lessons",
             "description": "Student lesson endpoints"
+        },
+        {
+            "name": "Student Memos",
+            "description": "Student memo (PDF booklet) endpoints"
         },
         {
             "name": "Student Videos",

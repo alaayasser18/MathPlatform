@@ -7,6 +7,9 @@ use App\Http\Requests\Admin\CreateStudentRequest;
 use App\Http\Requests\Admin\UpdateStudentRequest;
 use App\Http\Resources\Admin\StudentResource;
 use App\Models\Admin;
+use App\Models\ExamAttempt;
+use App\Models\Lesson;
+use App\Models\Question;
 use App\Models\Student;
 use App\Services\Admin\AdminStudentService;
 use Illuminate\Http\JsonResponse;
@@ -17,8 +20,7 @@ class AdminStudentController extends Controller
 {
     public function __construct(
         private AdminStudentService $adminStudentService
-    ) {
-    }
+    ) {}
 
     #[OA\Get(
         path: '/api/v1/admin/students',
@@ -27,7 +29,7 @@ class AdminStudentController extends Controller
         description: 'Returns a paginated list of all students.',
         tags: ['Admin Students'],
         security: [
-            ['sanctum' => []]
+            ['sanctum' => []],
         ],
         parameters: [
             new OA\Parameter(
@@ -39,7 +41,7 @@ class AdminStudentController extends Controller
                     minimum: 1
                 ),
                 example: 1
-            )
+            ),
         ],
         responses: [
             new OA\Response(
@@ -53,12 +55,12 @@ class AdminStudentController extends Controller
             new OA\Response(
                 response: 403,
                 description: 'Admin access required'
-            )
+            ),
         ]
     )]
     public function index(Request $request)
     {
-        if (!$request->user() instanceof Admin) {
+        if (! $request->user() instanceof Admin) {
             return response()->json([
                 'success' => false,
                 'message' => 'Admin access required.',
@@ -78,7 +80,7 @@ class AdminStudentController extends Controller
         description: 'Returns the details of a specific student.',
         tags: ['Admin Students'],
         security: [
-            ['sanctum' => []]
+            ['sanctum' => []],
         ],
         parameters: [
             new OA\Parameter(
@@ -89,7 +91,7 @@ class AdminStudentController extends Controller
                     type: 'integer'
                 ),
                 example: 1
-            )
+            ),
         ],
         responses: [
             new OA\Response(
@@ -107,14 +109,14 @@ class AdminStudentController extends Controller
             new OA\Response(
                 response: 404,
                 description: 'Student not found'
-            )
+            ),
         ]
     )]
     public function show(
         Request $request,
         Student $student
     ) {
-        if (!$request->user() instanceof Admin) {
+        if (! $request->user() instanceof Admin) {
             return response()->json([
                 'success' => false,
                 'message' => 'Admin access required.',
@@ -134,7 +136,7 @@ class AdminStudentController extends Controller
         description: 'Creates a student, enrollment, active subscription, and an approved subscription code. No approval is required when the student is created by an admin.',
         tags: ['Admin Students'],
         security: [
-            ['sanctum' => []]
+            ['sanctum' => []],
         ],
         requestBody: new OA\RequestBody(
             required: true,
@@ -144,7 +146,7 @@ class AdminStudentController extends Controller
                     'last_name',
                     'phone',
                     'parent_phone',
-                    'grade_id'
+                    'grade_id',
                 ],
                 properties: [
                     new OA\Property(
@@ -192,7 +194,7 @@ class AdminStudentController extends Controller
                         format: 'date',
                         nullable: true,
                         example: '2027-09-18'
-                    )
+                    ),
                 ]
             )
         ),
@@ -212,14 +214,14 @@ class AdminStudentController extends Controller
             new OA\Response(
                 response: 422,
                 description: 'Validation error'
-            )
+            ),
         ]
     )]
     public function store(
         Request $request,
         CreateStudentRequest $createStudentRequest
     ): JsonResponse|StudentResource {
-        if (!$request->user() instanceof Admin) {
+        if (! $request->user() instanceof Admin) {
             return response()->json([
                 'success' => false,
                 'message' => 'Admin access required.',
@@ -243,7 +245,7 @@ class AdminStudentController extends Controller
         description: 'Updates the basic information of a student.',
         tags: ['Admin Students'],
         security: [
-            ['sanctum' => []]
+            ['sanctum' => []],
         ],
         parameters: [
             new OA\Parameter(
@@ -254,7 +256,7 @@ class AdminStudentController extends Controller
                     type: 'integer'
                 ),
                 example: 1
-            )
+            ),
         ],
         requestBody: new OA\RequestBody(
             required: true,
@@ -264,7 +266,7 @@ class AdminStudentController extends Controller
                     'last_name',
                     'phone',
                     'parent_phone',
-                    'grade_id'
+                    'grade_id',
                 ],
                 properties: [
                     new OA\Property(
@@ -291,7 +293,7 @@ class AdminStudentController extends Controller
                         property: 'grade_id',
                         type: 'integer',
                         example: 1
-                    )
+                    ),
                 ]
             )
         ),
@@ -315,7 +317,7 @@ class AdminStudentController extends Controller
             new OA\Response(
                 response: 422,
                 description: 'Validation error'
-            )
+            ),
         ]
     )]
     public function update(
@@ -323,7 +325,7 @@ class AdminStudentController extends Controller
         UpdateStudentRequest $updateStudentRequest,
         Student $student
     ): JsonResponse|StudentResource {
-        if (!$request->user() instanceof Admin) {
+        if (! $request->user() instanceof Admin) {
             return response()->json([
                 'success' => false,
                 'message' => 'Admin access required.',
@@ -337,5 +339,173 @@ class AdminStudentController extends Controller
             );
 
         return new StudentResource($student);
+    }
+
+    #[OA\Get(
+        path: '/api/v1/admin/students/{student}/lessons/{lesson}/quiz/answers',
+        operationId: 'adminStudentLessonQuizAnswers',
+        summary: 'Get quiz answers of a student for a lesson',
+        description: 'Returns the answers and attempt details of a specific student on a specific lesson quiz.',
+        tags: ['Admin Students'],
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(
+                name: 'student',
+                description: 'Student ID',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer'),
+                example: 1
+            ),
+            new OA\Parameter(
+                name: 'lesson',
+                description: 'Lesson ID',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer'),
+                example: 1
+            ),
+            new OA\Parameter(
+                name: 'attempt_id',
+                description: 'Optional attempt ID. If omitted, returns the latest submitted attempt.',
+                in: 'query',
+                required: false,
+                schema: new OA\Schema(type: 'integer'),
+                example: 1
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Quiz answers retrieved successfully'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Admin access required'),
+            new OA\Response(response: 404, description: 'Student, lesson, or quiz attempt not found'),
+        ]
+    )]
+    public function quizAnswers(Request $request, int $student, int $lesson): JsonResponse
+    {
+        if (! $request->user() instanceof Admin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Admin access required.',
+            ], 403);
+        }
+
+        $studentModel = Student::find($student);
+        if (! $studentModel) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student not found.',
+            ], 404);
+        }
+
+        $lessonModel = Lesson::query()
+            ->with(['section', 'exam'])
+            ->find($lesson);
+
+        if (! $lessonModel) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lesson not found.',
+            ], 404);
+        }
+
+        if (! $lessonModel->exam) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This lesson does not have a quiz.',
+            ], 404);
+        }
+
+        $attemptQuery = ExamAttempt::query()
+            ->where('student_id', $studentModel->id)
+            ->where('exam_id', $lessonModel->exam->id)
+            ->whereNotNull('submitted_at');
+
+        if ($request->filled('attempt_id')) {
+            $attemptQuery->where('id', $request->integer('attempt_id'));
+        } else {
+            $attemptQuery->latest('id');
+        }
+
+        $attempt = $attemptQuery->with(['answers.option', 'answers.question'])->first();
+
+        if (! $attempt) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No submitted quiz attempts found for this student on this lesson.',
+            ], 404);
+        }
+
+        $questions = Question::where('exam_id', $lessonModel->exam->id)
+            ->with('options')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        $answersByQuestion = $attempt->answers->keyBy('question_id');
+
+        $detailedAnswers = $questions->map(function ($question) use ($answersByQuestion) {
+            $studentAnswer = $answersByQuestion->get($question->id);
+            $selectedOption = $studentAnswer?->option;
+            $correctOption = $question->options->firstWhere('is_correct', true);
+
+            return [
+                'question_id' => $question->id,
+                'question_text' => $question->question_text,
+                'points' => (int) $question->points,
+                'sort_order' => (int) $question->sort_order,
+                'is_answered' => $studentAnswer !== null,
+                'is_correct' => $studentAnswer ? (bool) $studentAnswer->is_correct : false,
+                'selected_option' => $selectedOption ? [
+                    'id' => $selectedOption->id,
+                    'option_text' => $selectedOption->option_text,
+                    'is_correct' => (bool) $selectedOption->is_correct,
+                ] : null,
+                'correct_option' => $correctOption ? [
+                    'id' => $correctOption->id,
+                    'option_text' => $correctOption->option_text,
+                ] : null,
+                'options' => $question->options->map(function ($opt) use ($selectedOption) {
+                    return [
+                        'id' => $opt->id,
+                        'option_text' => $opt->option_text,
+                        'is_correct' => (bool) $opt->is_correct,
+                        'is_selected' => $selectedOption && $selectedOption->id === $opt->id,
+                    ];
+                }),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Student quiz answers retrieved successfully.',
+            'data' => [
+                'student' => [
+                    'id' => $studentModel->id,
+                    'first_name' => $studentModel->first_name,
+                    'last_name' => $studentModel->last_name,
+                    'phone' => $studentModel->phone,
+                ],
+                'lesson' => [
+                    'id' => $lessonModel->id,
+                    'title' => $lessonModel->title,
+                ],
+                'exam' => [
+                    'id' => $lessonModel->exam->id,
+                    'title' => $lessonModel->exam->title,
+                    'passing_percentage' => (int) $lessonModel->exam->passing_percentage,
+                ],
+                'attempt' => [
+                    'id' => $attempt->id,
+                    'score' => (int) $attempt->score,
+                    'total_score' => (int) $attempt->total_score,
+                    'percentage' => (string) $attempt->percentage,
+                    'is_passed' => (bool) $attempt->is_passed,
+                    'started_at' => $attempt->started_at?->toIso8601String(),
+                    'submitted_at' => $attempt->submitted_at?->toIso8601String(),
+                ],
+                'answers' => $detailedAnswers,
+            ],
+        ]);
     }
 }

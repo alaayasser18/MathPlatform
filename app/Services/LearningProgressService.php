@@ -9,7 +9,6 @@ use App\Models\LessonProgress;
 use App\Models\Subscription;
 use App\Models\Video;
 use App\Models\VideoProgress;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
 class LearningProgressService
@@ -61,7 +60,7 @@ class LearningProgressService
     ): bool {
         $previousLesson = $this->getPreviousLesson($lesson);
 
-        if (!$previousLesson) {
+        if (! $previousLesson) {
             return true;
         }
 
@@ -85,7 +84,7 @@ class LearningProgressService
     {
         $section = $lesson->section;
 
-        if (!$section) {
+        if (! $section) {
             return null;
         }
 
@@ -95,9 +94,11 @@ class LearningProgressService
         |--------------------------------------------------------------------------
         */
 
+        $lessonSortOrder = $lesson->sort_order ?? 0;
+
         $previousLesson = Lesson::query()
             ->where('section_id', $lesson->section_id)
-            ->where('sort_order', '<', $lesson->sort_order)
+            ->where('sort_order', '<', $lessonSortOrder)
             ->orderByDesc('sort_order')
             ->orderByDesc('id')
             ->first();
@@ -112,14 +113,16 @@ class LearningProgressService
         |--------------------------------------------------------------------------
         */
 
+        $sectionSortOrder = $section->sort_order ?? 0;
+
         $previousSection = $section->newQuery()
             ->where('grade_id', $section->grade_id)
-            ->where(function ($query) use ($section) {
+            ->where(function ($query) use ($section, $sectionSortOrder) {
                 $query
-                    ->where('sort_order', '<', $section->sort_order)
-                    ->orWhere(function ($query) use ($section) {
+                    ->where('sort_order', '<', $sectionSortOrder)
+                    ->orWhere(function ($query) use ($section, $sectionSortOrder) {
                         $query
-                            ->where('sort_order', $section->sort_order)
+                            ->where('sort_order', $sectionSortOrder)
                             ->where('id', '<', $section->id);
                     });
             })
@@ -127,7 +130,7 @@ class LearningProgressService
             ->orderByDesc('id')
             ->first();
 
-        if (!$previousSection) {
+        if (! $previousSection) {
             return null;
         }
 
@@ -156,7 +159,7 @@ class LearningProgressService
     ): bool {
         $lesson = $video->lesson;
 
-        if (!$lesson) {
+        if (! $lesson) {
             return false;
         }
 
@@ -166,7 +169,7 @@ class LearningProgressService
         |--------------------------------------------------------------------------
         */
 
-        if (!$this->isLessonUnlocked(
+        if (! $this->isLessonUnlocked(
             $studentId,
             $subscriptionId,
             $lesson
@@ -202,7 +205,7 @@ class LearningProgressService
         |--------------------------------------------------------------------------
         */
 
-        if (!$previousVideo) {
+        if (! $previousVideo) {
             return true;
         }
 
@@ -258,7 +261,7 @@ class LearningProgressService
         |--------------------------------------------------------------------------
         */
 
-        if (!$this->isVideoUnlocked(
+        if (! $this->isVideoUnlocked(
             $studentId,
             $subscriptionId,
             $video
@@ -333,7 +336,7 @@ class LearningProgressService
 
             $progress->is_completed = $isCompleted;
 
-            if ($isCompleted && !$progress->completed_at) {
+            if ($isCompleted && ! $progress->completed_at) {
                 $progress->completed_at = now();
             }
 
@@ -485,7 +488,7 @@ class LearningProgressService
         int $subscriptionId,
         Lesson $lesson
     ): bool {
-        if (!$this->isLessonUnlocked(
+        if (! $this->isLessonUnlocked(
             $studentId,
             $subscriptionId,
             $lesson
@@ -510,7 +513,7 @@ class LearningProgressService
     ): bool {
         $exam = $lesson->exam;
 
-        if (!$exam || !$exam->is_active) {
+        if (! $exam || ! $exam->is_active) {
             /*
             |--------------------------------------------------------------------------
             | If there is no active exam, there is no exam requirement.

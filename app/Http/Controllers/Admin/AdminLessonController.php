@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreLessonRequest;
+use App\Http\Requests\Admin\StoreQuizQuestionsRequest;
+use App\Models\Exam;
 use App\Models\Lesson;
 use App\Models\Section;
 use Illuminate\Http\JsonResponse;
@@ -263,7 +265,7 @@ class AdminLessonController extends Controller
     {
         $lessonModel = Lesson::find($lesson);
 
-        if (!$lessonModel) {
+        if (! $lessonModel) {
             return response()->json([
                 'success' => false,
                 'message' => 'Lesson not found.',
@@ -276,5 +278,218 @@ class AdminLessonController extends Controller
             'success' => true,
             'message' => 'Lesson deleted successfully.',
         ]);
+    }
+
+    /**
+     * Save quiz questions for a lesson.
+     */
+    #[OA\Post(
+        path: '/api/v1/admin/lessons/{lesson}/quiz/questions',
+        operationId: 'adminLessonQuizQuestionsStore',
+        summary: 'Save quiz questions for a lesson',
+        description: 'Creates or updates the quiz for the specified lesson and saves questions with their multiple-choice options.',
+        tags: ['Admin Lessons'],
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(
+                name: 'lesson',
+                description: 'Lesson ID',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer'),
+                example: 1
+            ),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            description: 'Quiz questions and options data',
+            content: new OA\JsonContent(
+                required: ['questions'],
+                properties: [
+                    new OA\Property(
+                        property: 'title',
+                        type: 'string',
+                        description: 'Optional custom title for the quiz',
+                        example: 'اختبار الدرس الأول'
+                    ),
+                    new OA\Property(
+                        property: 'description',
+                        type: 'string',
+                        nullable: true,
+                        example: 'اختبار تجريبي'
+                    ),
+                    new OA\Property(
+                        property: 'duration_minutes',
+                        type: 'integer',
+                        nullable: true,
+                        example: 20
+                    ),
+                    new OA\Property(
+                        property: 'passing_percentage',
+                        type: 'integer',
+                        minimum: 1,
+                        maximum: 100,
+                        example: 60
+                    ),
+                    new OA\Property(
+                        property: 'questions',
+                        type: 'array',
+                        items: new OA\Items(
+                            required: ['question_text', 'points', 'options'],
+                            properties: [
+                                new OA\Property(
+                                    property: 'question_text',
+                                    type: 'string',
+                                    example: 'ما هو ناتج 2 + 2؟'
+                                ),
+                                new OA\Property(
+                                    property: 'points',
+                                    type: 'integer',
+                                    minimum: 1,
+                                    example: 1
+                                ),
+                                new OA\Property(
+                                    property: 'sort_order',
+                                    type: 'integer',
+                                    nullable: true,
+                                    example: 1
+                                ),
+                                new OA\Property(
+                                    property: 'options',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        required: ['option_text', 'is_correct'],
+                                        properties: [
+                                            new OA\Property(
+                                                property: 'option_text',
+                                                type: 'string',
+                                                example: '4'
+                                            ),
+                                            new OA\Property(
+                                                property: 'is_correct',
+                                                type: 'boolean',
+                                                example: true
+                                            ),
+                                            new OA\Property(
+                                                property: 'sort_order',
+                                                type: 'integer',
+                                                nullable: true,
+                                                example: 1
+                                            ),
+                                        ]
+                                    )
+                                ),
+                            ]
+                        )
+                    ),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: 'Quiz questions saved successfully'
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Lesson not found'
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validation error'
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated'
+            ),
+        ]
+    )]
+    public function storeQuizQuestions(StoreQuizQuestionsRequest $request, int $lesson): JsonResponse
+    {
+        $lessonModel = Lesson::with('exam')->find($lesson);
+
+        if (! $lessonModel) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lesson not found.',
+            ], 404);
+        }
+
+        $validated = $request->validated();
+
+        $exam = DB::transaction(function () use ($lessonModel, $validated) {
+            $exam = $lessonModel->exam;
+
+            if (! $exam) {
+                $exam = Exam::create([
+                    'lesson_id' => $lessonModel->id,
+                    'title' => $validated['title'] ?? ($lessonModel->title.' - اختبار'),
+                    'description' => $validated['description'] ?? null,
+                    'duration_minutes' => $validated['duration_minutes'] ?? null,
+                    'passing_percentage' => $validated['passing_percentage'] ?? 60,
+                    'is_active' => true,
+                ]);
+            } else {
+                $updates = [];
+                if (isset($validated['title'])) {
+                    $updates['title'] = $validated['title'];
+                }
+                if (array_key_exists('description', $validated)) {
+                    $updates['description'] = $validated['description'];
+                }
+                if (array_key_exists('duration_minutes', $validated)) {
+                    $updates['duration_minutes'] = $validated['duration_minutes'];
+                }
+                if (isset($validated['passing_percentage'])) {
+                    $updates['passing_percentage'] = $validated['passing_percentage'];
+                }
+
+                if (! empty($updates)) {
+                    $exam->update($updates);
+                }
+            }
+
+            $currentMaxSort = (int) $exam->questions()->max('sort_order');
+
+            foreach ($validated['questions'] as $qData) {
+                $currentMaxSort++;
+                $sortOrder = $qData['sort_order'] ?? $currentMaxSort;
+
+                $question = $exam->questions()->create([
+                    'question_text' => $qData['question_text'],
+                    'points' => $qData['points'] ?? 1,
+                    'sort_order' => $sortOrder,
+                ]);
+
+                if (! empty($qData['options']) && is_array($qData['options'])) {
+                    $optSort = 0;
+                    foreach ($qData['options'] as $optData) {
+                        $optSort++;
+                        $question->options()->create([
+                            'option_text' => $optData['option_text'],
+                            'is_correct' => (bool) $optData['is_correct'],
+                            'sort_order' => $optData['sort_order'] ?? $optSort,
+                        ]);
+                    }
+                }
+            }
+
+            return $exam;
+        });
+
+        $exam->load([
+            'lesson:id,section_id,title',
+            'lesson.section:id,grade_id,name',
+            'questions.options',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Quiz questions saved successfully.',
+            'data' => [
+                'exam' => $exam,
+                'questions_count' => $exam->questions->count(),
+            ],
+        ], 201);
     }
 }

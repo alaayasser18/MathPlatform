@@ -21,7 +21,6 @@ class StudentFactory extends Factory
             'phone' => fake()->unique()->numerify('01#########'),
             'parent_phone' => fake()->numerify('01#########'),
             'grade_id' => Grade::factory(),
-            'governorate' => fake()->city(),
             'registered_at' => now()->toDateString(),
         ];
     }

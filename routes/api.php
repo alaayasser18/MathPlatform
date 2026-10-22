@@ -4,12 +4,14 @@ use App\Http\Controllers\Admin\AdminActivationController;
 use App\Http\Controllers\Admin\AdminDeviceController;
 use App\Http\Controllers\Admin\AdminExamController;
 use App\Http\Controllers\Admin\AdminLessonController;
+use App\Http\Controllers\Admin\AdminMemoController;
 use App\Http\Controllers\Admin\AdminStudentController;
 use App\Http\Controllers\Admin\AdminSubscriptionCodeController;
 use App\Http\Controllers\Auth\AdminAuthController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Student\StudentExamController;
 use App\Http\Controllers\Student\StudentLessonController;
+use App\Http\Controllers\Student\StudentMemoController;
 use App\Http\Controllers\Student\StudentProfileController;
 use App\Http\Controllers\Student\StudentVideoController;
 use App\Http\Middleware\AdminOnly;
@@ -40,7 +42,6 @@ Route::prefix('v1')->group(function () {
         });
     });
 
-
     /*
     |--------------------------------------------------------------------------
     | Admin Authentication
@@ -49,17 +50,16 @@ Route::prefix('v1')->group(function () {
 
     Route::prefix('admin/auth')->group(function () {
 
-    Route::post('/login', [AdminAuthController::class, 'login']);
+        Route::post('/login', [AdminAuthController::class, 'login']);
 
-    Route::middleware([
-        'auth:sanctum',
-        AdminOnly::class,
-    ])->group(function () {
+        Route::middleware([
+            'auth:sanctum',
+            AdminOnly::class,
+        ])->group(function () {
 
-        Route::post('/logout', [AdminAuthController::class, 'logout']);
+            Route::post('/logout', [AdminAuthController::class, 'logout']);
+        });
     });
-});
-
 
     /*
     |--------------------------------------------------------------------------
@@ -100,7 +100,6 @@ Route::prefix('v1')->group(function () {
                 [AdminActivationController::class, 'approvedStudents']
             );
 
-
             /*
             |--------------------------------------------------------------------------
             | Subscriptions
@@ -112,7 +111,6 @@ Route::prefix('v1')->group(function () {
                 [AdminActivationController::class, 'deactivateSubscription']
             );
 
-
             /*
             |--------------------------------------------------------------------------
             | Devices
@@ -123,7 +121,6 @@ Route::prefix('v1')->group(function () {
                 '/subscriptions/{subscription}/reset-device',
                 [AdminDeviceController::class, 'reset']
             );
-
 
             /*
             |--------------------------------------------------------------------------
@@ -151,6 +148,10 @@ Route::prefix('v1')->group(function () {
                 [AdminStudentController::class, 'update']
             );
 
+            Route::get(
+                '/students/{student}/lessons/{lesson}/quiz/answers',
+                [AdminStudentController::class, 'quizAnswers']
+            );
 
             /*
             |--------------------------------------------------------------------------
@@ -162,7 +163,6 @@ Route::prefix('v1')->group(function () {
                 '/subscription-codes',
                 [AdminSubscriptionCodeController::class, 'index']
             );
-
 
             /*
             |--------------------------------------------------------------------------
@@ -185,6 +185,42 @@ Route::prefix('v1')->group(function () {
                 [AdminLessonController::class, 'destroy']
             );
 
+            Route::post(
+                '/lessons/{lesson}/quiz/questions',
+                [AdminLessonController::class, 'storeQuizQuestions']
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Memos
+            |--------------------------------------------------------------------------
+            */
+
+            Route::get(
+                '/memos',
+                [AdminMemoController::class, 'index']
+            );
+
+            Route::post(
+                '/memos',
+                [AdminMemoController::class, 'store']
+            );
+
+            Route::get(
+                '/memos/{memo}',
+                [AdminMemoController::class, 'show']
+            );
+
+            Route::match(
+                ['put', 'post'],
+                '/memos/{memo}',
+                [AdminMemoController::class, 'update']
+            );
+
+            Route::delete(
+                '/memos/{memo}',
+                [AdminMemoController::class, 'destroy']
+            );
 
             /*
             |--------------------------------------------------------------------------
@@ -217,7 +253,6 @@ Route::prefix('v1')->group(function () {
                 [AdminExamController::class, 'destroy']
             );
 
-
             /*
             |--------------------------------------------------------------------------
             | Questions
@@ -238,7 +273,6 @@ Route::prefix('v1')->group(function () {
                 '/questions/{question}',
                 [AdminExamController::class, 'destroyQuestion']
             );
-
 
             /*
             |--------------------------------------------------------------------------
@@ -261,7 +295,6 @@ Route::prefix('v1')->group(function () {
                 [AdminExamController::class, 'destroyOption']
             );
         });
-
 
     /*
     |--------------------------------------------------------------------------
@@ -288,6 +321,10 @@ Route::prefix('v1')->group(function () {
                 [StudentProfileController::class, 'show']
             );
 
+            Route::put(
+                '/profile',
+                [StudentProfileController::class, 'update']
+            );
 
             /*
             |--------------------------------------------------------------------------
@@ -300,6 +337,20 @@ Route::prefix('v1')->group(function () {
                 [StudentLessonController::class, 'index']
             );
 
+            Route::get(
+                '/lessons/{lesson}',
+                [StudentLessonController::class, 'show']
+            );
+
+            Route::get(
+                '/materials/{material}/download',
+                [StudentLessonController::class, 'downloadMaterial']
+            );
+
+            Route::get(
+                '/lessons/{lesson}/quiz/answers',
+                [StudentLessonController::class, 'quizAnswers']
+            );
 
             /*
             |--------------------------------------------------------------------------
@@ -317,6 +368,21 @@ Route::prefix('v1')->group(function () {
                 [StudentVideoController::class, 'updateProgress']
             );
 
+            /*
+            |--------------------------------------------------------------------------
+            | Memos
+            |--------------------------------------------------------------------------
+            */
+
+            Route::get(
+                '/memos',
+                [StudentMemoController::class, 'index']
+            );
+
+            Route::get(
+                '/memos/{memo}/download',
+                [StudentMemoController::class, 'download']
+            );
 
             /*
             |--------------------------------------------------------------------------
@@ -325,8 +391,18 @@ Route::prefix('v1')->group(function () {
             */
 
             Route::get(
+                '/exams',
+                [StudentExamController::class, 'index']
+            );
+
+            Route::get(
                 '/exams/{exam}',
                 [StudentExamController::class, 'show']
+            );
+
+            Route::get(
+                '/exams/{exam}/attempts',
+                [StudentExamController::class, 'attempts']
             );
 
             Route::post(

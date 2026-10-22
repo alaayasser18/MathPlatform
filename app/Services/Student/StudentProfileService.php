@@ -33,6 +33,7 @@ class StudentProfileService
                     ->where('status', 'active')
                     ->latest()
                     ->with([
+                        'subscriptionCode:id,code,expires_at',
                         'trustedDevice:id,subscription_id,device_identifier,device_name,platform,browser,operating_system,is_trusted,deactivated_at',
                     ]);
             },
@@ -46,7 +47,7 @@ class StudentProfileService
 
         $subscription = $student->subscriptions->first();
 
-        if (!$subscription) {
+        if (! $subscription) {
             throw ValidationException::withMessages([
                 'subscription' => [
                     'No active subscription was found for this student.',
