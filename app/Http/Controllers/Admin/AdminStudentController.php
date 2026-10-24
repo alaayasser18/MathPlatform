@@ -341,6 +341,68 @@ class AdminStudentController extends Controller
         return new StudentResource($student);
     }
 
+    #[OA\Delete(
+        path: '/api/v1/admin/students/{student}',
+        operationId: 'deleteStudentByAdmin',
+        summary: 'Delete student',
+        description: 'Permanently deletes a student and all related records from the database.',
+        tags: ['Admin Students'],
+        security: [
+            ['sanctum' => []],
+        ],
+        parameters: [
+            new OA\Parameter(
+                name: 'student',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(
+                    type: 'integer'
+                ),
+                example: 1
+            ),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Student deleted successfully'
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated'
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Admin access required'
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Student not found'
+            ),
+        ]
+    )]
+    public function destroy(
+        Request $request,
+        Student $student
+    ): JsonResponse {
+        if (! $request->user() instanceof Admin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Admin access required.',
+            ], 403);
+        }
+
+        $deletedStudent = $this->adminStudentService
+            ->deleteStudent($student);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Student deleted successfully.',
+            'data' => [
+                'student' => $deletedStudent,
+            ],
+        ]);
+    }
+
     #[OA\Get(
         path: '/api/v1/admin/students/{student}/lessons/{lesson}/quiz/answers',
         operationId: 'adminStudentLessonQuizAnswers',

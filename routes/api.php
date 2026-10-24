@@ -100,6 +100,16 @@ Route::prefix('v1')->group(function () {
                 [AdminActivationController::class, 'approvedStudents']
             );
 
+            Route::get(
+                '/deactivated-students',
+                [AdminActivationController::class, 'deactivatedStudents']
+            );
+
+            Route::delete(
+                '/deactivated-students/{student}',
+                [AdminActivationController::class, 'deleteDeactivatedStudent']
+            );
+
             /*
             |--------------------------------------------------------------------------
             | Subscriptions
@@ -109,6 +119,11 @@ Route::prefix('v1')->group(function () {
             Route::post(
                 '/subscriptions/{subscription}/deactivate',
                 [AdminActivationController::class, 'deactivateSubscription']
+            );
+
+            Route::delete(
+                '/subscriptions/{subscription}',
+                [AdminActivationController::class, 'deleteDeactivatedSubscription']
             );
 
             /*
@@ -146,6 +161,11 @@ Route::prefix('v1')->group(function () {
             Route::put(
                 '/students/{student}',
                 [AdminStudentController::class, 'update']
+            );
+
+            Route::delete(
+                '/students/{student}',
+                [AdminStudentController::class, 'destroy']
             );
 
             Route::get(

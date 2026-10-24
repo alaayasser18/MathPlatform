@@ -196,6 +196,132 @@
                 ]
             }
         },
+        "/api/v1/admin/deactivated-students": {
+            "get": {
+                "tags": [
+                    "Admin Activations"
+                ],
+                "summary": "Get deactivated students",
+                "description": "Returns students who have a deactivated (cancelled) subscription.",
+                "operationId": "getDeactivatedStudents",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Deactivated students retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Admin access required"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/deactivated-students/{student}": {
+            "delete": {
+                "tags": [
+                    "Admin Activations"
+                ],
+                "summary": "Permanently delete a deactivated student",
+                "description": "Permanently deletes a deactivated student and all associated data from the database.",
+                "operationId": "deleteDeactivatedStudent",
+                "parameters": [
+                    {
+                        "name": "student",
+                        "in": "path",
+                        "description": "Student ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Deactivated student deleted from database successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Admin access required"
+                    },
+                    "404": {
+                        "description": "Student not found"
+                    },
+                    "422": {
+                        "description": "Only deactivated students can be deleted"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/subscriptions/{subscription}": {
+            "delete": {
+                "tags": [
+                    "Admin Activations"
+                ],
+                "summary": "Permanently delete a deactivated subscription and its student",
+                "description": "Permanently deletes a deactivated subscription, its student, and all related records from the database.",
+                "operationId": "deleteDeactivatedSubscription",
+                "parameters": [
+                    {
+                        "name": "subscription",
+                        "in": "path",
+                        "description": "Subscription ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 3
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Deactivated student deleted from database successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Admin access required"
+                    },
+                    "404": {
+                        "description": "Subscription not found"
+                    },
+                    "422": {
+                        "description": "Only deactivated subscriptions can be deleted"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/v1/admin/subscriptions/{subscription}/reset-device": {
             "post": {
                 "tags": [
@@ -1691,6 +1817,44 @@
                     },
                     "422": {
                         "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Admin Students"
+                ],
+                "summary": "Delete student",
+                "description": "Permanently deletes a student and all related records from the database.",
+                "operationId": "deleteStudentByAdmin",
+                "parameters": [
+                    {
+                        "name": "student",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Student deleted successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Admin access required"
+                    },
+                    "404": {
+                        "description": "Student not found"
                     }
                 },
                 "security": [

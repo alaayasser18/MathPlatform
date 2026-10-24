@@ -144,6 +144,31 @@ class AdminStudentService
         ]);
     }
 
+    public function deleteStudent(Student $student): array
+    {
+        $studentData = [
+            'id' => $student->id,
+            'name' => trim($student->first_name . ' ' . $student->last_name),
+            'phone' => $student->phone,
+        ];
+
+        DB::transaction(function () use ($student) {
+            $student->tokens()->delete();
+
+            SubscriptionCode::where('used_by_student_id', $student->id)->delete();
+            $subscriptionCodeIds = $student->subscriptions()
+                ->pluck('subscription_code_id')
+                ->filter();
+            if ($subscriptionCodeIds->isNotEmpty()) {
+                SubscriptionCode::whereIn('id', $subscriptionCodeIds)->delete();
+            }
+
+            $student->delete();
+        });
+
+        return $studentData;
+    }
+
     private function generateUniqueCode(): string
     {
         do {

@@ -296,7 +296,7 @@ class AuthService
             ) {
                 throw ValidationException::withMessages([
                     'device_identifier' => [
-                        'Another device is already registered for this subscription. Please contact the administrator to reset the trusted device.'
+                        'هذا الكود مسجل بالفعل على جهاز آخر. يرجى التواصل مع الإدارة لإعادة تعيين الجهاز المصرح به.'
                     ],
                 ]);
             }

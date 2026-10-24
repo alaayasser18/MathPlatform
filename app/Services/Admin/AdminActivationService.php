@@ -4,6 +4,7 @@ namespace App\Services\Admin;
 
 use App\Models\Student;
 use App\Models\Subscription;
+use App\Models\SubscriptionCode;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -158,5 +159,92 @@ class AdminActivationService
             'student',
             'subscriptionCode',
         ]);
+    }
+
+    public function getDeactivatedStudents()
+    {
+        return Student::query()
+            ->with([
+                'grade:id,name',
+                'subscriptions' => function ($query) {
+                    $query
+                        ->where('status', 'cancelled')
+                        ->with([
+                            'subscriptionCode:id,code,expires_at,approval_status',
+                        ]);
+                },
+            ])
+            ->whereHas('subscriptions', function ($query) {
+                $query->where('status', 'cancelled');
+            })
+            ->latest()
+            ->paginate(15);
+    }
+
+    public function deleteDeactivatedStudent(
+        Student $student
+    ): array {
+        $hasDeactivatedSubscription = $student->subscriptions()
+            ->where('status', 'cancelled')
+            ->exists();
+
+        if (!$hasDeactivatedSubscription) {
+            throw ValidationException::withMessages([
+                'student' => [
+                    'Only deactivated students can be permanently deleted.'
+                ],
+            ]);
+        }
+
+        $studentData = [
+            'id' => $student->id,
+            'name' => trim($student->first_name . ' ' . $student->last_name),
+            'phone' => $student->phone,
+        ];
+
+        DB::transaction(function () use ($student) {
+            $student->tokens()->delete();
+
+            SubscriptionCode::where('used_by_student_id', $student->id)->delete();
+            $subscriptionCodeIds = $student->subscriptions()
+                ->pluck('subscription_code_id')
+                ->filter();
+            if ($subscriptionCodeIds->isNotEmpty()) {
+                SubscriptionCode::whereIn('id', $subscriptionCodeIds)->delete();
+            }
+
+            $student->delete();
+        });
+
+        return $studentData;
+    }
+
+    public function deleteDeactivatedSubscription(
+        Subscription $subscription
+    ): array {
+        if ($subscription->status !== 'cancelled') {
+            throw ValidationException::withMessages([
+                'subscription' => [
+                    'Only deactivated subscriptions can be deleted.'
+                ],
+            ]);
+        }
+
+        $student = $subscription->student;
+
+        if ($student) {
+            return $this->deleteDeactivatedStudent($student);
+        }
+
+        $subscriptionData = [
+            'id' => $subscription->id,
+            'status' => $subscription->status,
+        ];
+
+        $subscription->delete();
+
+        return [
+            'subscription' => $subscriptionData,
+        ];
     }
 }

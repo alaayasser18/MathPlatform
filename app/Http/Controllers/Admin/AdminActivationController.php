@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
+use App\Models\Student;
 use App\Models\Subscription;
 use App\Services\Admin\AdminActivationService;
 use Illuminate\Http\JsonResponse;
@@ -348,6 +349,189 @@ class AdminActivationController extends Controller
                     'approval_status' =>
                         $subscription->approval_status,
                 ],
+            ],
+        ]);
+    }
+
+    #[OA\Get(
+        path: '/api/v1/admin/deactivated-students',
+        operationId: 'getDeactivatedStudents',
+        summary: 'Get deactivated students',
+        description: 'Returns students who have a deactivated (cancelled) subscription.',
+        tags: ['Admin Activations'],
+        security: [
+            ['sanctum' => []]
+        ],
+        parameters: [
+            new OA\Parameter(
+                name: 'page',
+                in: 'query',
+                required: false,
+                schema: new OA\Schema(type: 'integer', minimum: 1),
+                example: 1
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Deactivated students retrieved successfully'
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated'
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Admin access required'
+            )
+        ]
+    )]
+    public function deactivatedStudents(
+        Request $request
+    ): JsonResponse {
+        if (!$request->user() instanceof Admin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Admin access required.',
+            ], 403);
+        }
+
+        $students = $this->adminActivationService
+            ->getDeactivatedStudents();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Deactivated students retrieved successfully.',
+            'data' => $students,
+        ]);
+    }
+
+    #[OA\Delete(
+        path: '/api/v1/admin/deactivated-students/{student}',
+        operationId: 'deleteDeactivatedStudent',
+        summary: 'Permanently delete a deactivated student',
+        description: 'Permanently deletes a deactivated student and all associated data from the database.',
+        tags: ['Admin Activations'],
+        security: [
+            ['sanctum' => []]
+        ],
+        parameters: [
+            new OA\Parameter(
+                name: 'student',
+                in: 'path',
+                required: true,
+                description: 'Student ID',
+                schema: new OA\Schema(type: 'integer'),
+                example: 1
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Deactivated student deleted from database successfully'
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated'
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Admin access required'
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Student not found'
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Only deactivated students can be deleted'
+            )
+        ]
+    )]
+    public function deleteDeactivatedStudent(
+        Request $request,
+        Student $student
+    ): JsonResponse {
+        if (!$request->user() instanceof Admin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Admin access required.',
+            ], 403);
+        }
+
+        $deletedStudent = $this->adminActivationService
+            ->deleteDeactivatedStudent($student);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Deactivated student deleted from database successfully.',
+            'data' => [
+                'student' => $deletedStudent,
+            ],
+        ]);
+    }
+
+    #[OA\Delete(
+        path: '/api/v1/admin/subscriptions/{subscription}',
+        operationId: 'deleteDeactivatedSubscription',
+        summary: 'Permanently delete a deactivated subscription and its student',
+        description: 'Permanently deletes a deactivated subscription, its student, and all related records from the database.',
+        tags: ['Admin Activations'],
+        security: [
+            ['sanctum' => []]
+        ],
+        parameters: [
+            new OA\Parameter(
+                name: 'subscription',
+                in: 'path',
+                required: true,
+                description: 'Subscription ID',
+                schema: new OA\Schema(type: 'integer'),
+                example: 3
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Deactivated student deleted from database successfully'
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated'
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Admin access required'
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Subscription not found'
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Only deactivated subscriptions can be deleted'
+            )
+        ]
+    )]
+    public function deleteDeactivatedSubscription(
+        Request $request,
+        Subscription $subscription
+    ): JsonResponse {
+        if (!$request->user() instanceof Admin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Admin access required.',
+            ], 403);
+        }
+
+        $deletedStudent = $this->adminActivationService
+            ->deleteDeactivatedSubscription($subscription);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Deactivated student deleted from database successfully.',
+            'data' => [
+                'student' => $deletedStudent,
             ],
         ]);
     }
