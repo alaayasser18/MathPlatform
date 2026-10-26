@@ -23,6 +23,31 @@ class Question extends Model
         'points' => 'integer',
     ];
 
+    protected $appends = [
+        'question',
+        'correctIndex',
+    ];
+
+    public function getQuestionAttribute(): string
+    {
+        return $this->question_text ?? '';
+    }
+
+    public function getCorrectIndexAttribute(): int
+    {
+        $options = $this->relationLoaded('options') ? $this->options : $this->options()->get();
+
+        $index = 0;
+        foreach ($options as $option) {
+            if ($option->is_correct) {
+                return $index;
+            }
+            $index++;
+        }
+
+        return 0;
+    }
+
     public function exam(): BelongsTo
     {
         return $this->belongsTo(Exam::class);

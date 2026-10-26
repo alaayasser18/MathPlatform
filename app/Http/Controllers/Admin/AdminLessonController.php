@@ -55,7 +55,7 @@ class AdminLessonController extends Controller
                 'section:id,grade_id,name,sort_order',
                 'section.grade:id,name',
                 'videos:id,lesson_id,title,video_url,sort_order,is_active',
-                'exam:id,lesson_id,title,description,duration_minutes,passing_percentage,is_active',
+                'exam.questions.options',
             ])
             ->orderBy('section_id')
             ->orderBy('sort_order')
@@ -74,6 +74,67 @@ class AdminLessonController extends Controller
             'message' => 'Lessons retrieved successfully.',
             'data' => [
                 'lessons' => $lessons,
+            ],
+        ]);
+    }
+
+    /**
+     * Get details of a single lesson for admin.
+     */
+    #[OA\Get(
+        path: '/api/v1/admin/lessons/{lesson}',
+        operationId: 'adminLessonsShow',
+        summary: 'Get details of a single lesson for admin',
+        tags: ['Admin Lessons'],
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(
+                name: 'lesson',
+                description: 'Lesson ID',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer'),
+                example: 1
+            ),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Lesson retrieved successfully'
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Lesson not found'
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated'
+            ),
+        ]
+    )]
+    public function show(int $lesson): JsonResponse
+    {
+        $lessonModel = Lesson::query()
+            ->with([
+                'section:id,grade_id,name,sort_order',
+                'section.grade:id,name',
+                'videos:id,lesson_id,title,video_url,sort_order,is_active',
+                'exam.questions.options',
+            ])
+            ->find($lesson);
+
+        if (! $lessonModel) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lesson not found.',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lesson retrieved successfully.',
+            'data' => [
+                'lesson' => $lessonModel,
             ],
         ]);
     }
@@ -123,6 +184,45 @@ class AdminLessonController extends Controller
                         type: 'string',
                         format: 'uri',
                         example: 'https://www.youtube.com/watch?v=XXXXXXXXXXX'
+                    ),
+                    new OA\Property(
+                        property: 'quiz_title',
+                        type: 'string',
+                        nullable: true,
+                        example: 'اختبار الدرس الأول'
+                    ),
+                    new OA\Property(
+                        property: 'duration_minutes',
+                        type: 'integer',
+                        nullable: true,
+                        example: 20
+                    ),
+                    new OA\Property(
+                        property: 'passing_percentage',
+                        type: 'integer',
+                        nullable: true,
+                        example: 60
+                    ),
+                    new OA\Property(
+                        property: 'questions',
+                        type: 'array',
+                        nullable: true,
+                        items: new OA\Items(
+                            properties: [
+                                new OA\Property(property: 'question_text', type: 'string', example: 'ما هو ناتج 2 + 2؟'),
+                                new OA\Property(property: 'points', type: 'integer', example: 1),
+                                new OA\Property(
+                                    property: 'options',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        properties: [
+                                            new OA\Property(property: 'option_text', type: 'string', example: '4'),
+                                            new OA\Property(property: 'is_correct', type: 'boolean', example: true),
+                                        ]
+                                    )
+                                ),
+                            ]
+                        )
                     ),
                 ]
             )
@@ -208,6 +308,41 @@ class AdminLessonController extends Controller
                 'is_active' => true,
             ]);
 
+            /*
+            |--------------------------------------------------------------------------
+            | Create exam & questions if provided
+            |--------------------------------------------------------------------------
+            */
+
+            if ($request->filled('questions')) {
+                $exam = Exam::create([
+                    'lesson_id' => $lesson->id,
+                    'title' => $request->input('quiz_title') ?? ($lesson->title.' - اختبار'),
+                    'description' => $request->input('quiz_description'),
+                    'duration_minutes' => $request->input('duration_minutes'),
+                    'passing_percentage' => $request->integer('passing_percentage', 60),
+                    'is_active' => true,
+                ]);
+
+                foreach ($request->input('questions') as $qIndex => $qData) {
+                    $question = $exam->questions()->create([
+                        'question_text' => $qData['question_text'],
+                        'points' => $qData['points'] ?? 1,
+                        'sort_order' => $qData['sort_order'] ?? ($qIndex + 1),
+                    ]);
+
+                    if (! empty($qData['options']) && is_array($qData['options'])) {
+                        foreach ($qData['options'] as $optIndex => $optData) {
+                            $question->options()->create([
+                                'option_text' => $optData['option_text'],
+                                'is_correct' => filter_var($optData['is_correct'], FILTER_VALIDATE_BOOLEAN),
+                                'sort_order' => $optData['sort_order'] ?? ($optIndex + 1),
+                            ]);
+                        }
+                    }
+                }
+            }
+
             return $lesson;
         });
 
@@ -215,7 +350,7 @@ class AdminLessonController extends Controller
             'section:id,grade_id,name,sort_order',
             'section.grade:id,name',
             'videos:id,lesson_id,title,video_url,sort_order,is_active',
-            'exam:id,lesson_id,title,description,duration_minutes,passing_percentage,is_active',
+            'exam.questions.options',
         ]);
 
         return response()->json([
@@ -467,7 +602,7 @@ class AdminLessonController extends Controller
                         $optSort++;
                         $question->options()->create([
                             'option_text' => $optData['option_text'],
-                            'is_correct' => (bool) $optData['is_correct'],
+                            'is_correct' => filter_var($optData['is_correct'] ?? false, FILTER_VALIDATE_BOOLEAN),
                             'sort_order' => $optData['sort_order'] ?? $optSort,
                         ]);
                     }

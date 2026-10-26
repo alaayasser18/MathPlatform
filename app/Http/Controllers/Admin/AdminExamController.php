@@ -35,6 +35,7 @@ class AdminExamController extends Controller
             ->with([
                 'lesson:id,section_id,title',
                 'lesson.section:id,grade_id,name',
+                'questions.options',
             ])
             ->withCount('questions')
             ->orderBy('lesson_id')
@@ -106,6 +107,7 @@ class AdminExamController extends Controller
             'description' => ['nullable', 'string'],
             'duration_minutes' => ['nullable', 'integer', 'min:1'],
             'passing_percentage' => ['required', 'integer', 'min:1', 'max:100'],
+            'questions' => ['nullable', 'array'],
         ]);
 
         $lesson = Lesson::query()
@@ -126,19 +128,54 @@ class AdminExamController extends Controller
             ], 422);
         }
 
-        $exam = Exam::create([
-            'lesson_id' => $validated['lesson_id'],
-            'title' => $validated['title'],
-            'description' => $validated['description'] ?? null,
-            'duration_minutes' => $validated['duration_minutes'] ?? null,
-            'passing_percentage' => $validated['passing_percentage'],
-            'is_active' => true,
-        ]);
+        $exam = DB::transaction(function () use ($validated, $request) {
+            $exam = Exam::create([
+                'lesson_id' => $validated['lesson_id'],
+                'title' => $validated['title'],
+                'description' => $validated['description'] ?? null,
+                'duration_minutes' => $validated['duration_minutes'] ?? null,
+                'passing_percentage' => $validated['passing_percentage'],
+                'is_active' => true,
+            ]);
+
+            $rawQuestions = $request->input('questions');
+            if (is_array($rawQuestions) && ! empty($rawQuestions)) {
+                foreach ($rawQuestions as $qIndex => $q) {
+                    if (! is_array($q)) {
+                        continue;
+                    }
+                    $qText = $q['question_text'] ?? $q['question'] ?? $q['title'] ?? null;
+                    if (! $qText) {
+                        continue;
+                    }
+                    $question = $exam->questions()->create([
+                        'question_text' => $qText,
+                        'points' => max(1, (int) ($q['points'] ?? 1)),
+                        'sort_order' => (int) ($q['sort_order'] ?? ($qIndex + 1)),
+                    ]);
+
+                    $rawOptions = $q['options'] ?? [];
+                    if (is_array($rawOptions)) {
+                        foreach ($rawOptions as $optIndex => $opt) {
+                            $optText = is_string($opt) ? $opt : ($opt['option_text'] ?? $opt['option'] ?? $opt['text'] ?? '');
+                            $isCorrect = is_string($opt) ? ($optIndex === 0) : filter_var($opt['is_correct'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                            $question->options()->create([
+                                'option_text' => (string) $optText,
+                                'is_correct' => $isCorrect,
+                                'sort_order' => (int) ($opt['sort_order'] ?? ($optIndex + 1)),
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            return $exam;
+        });
 
         $exam->load([
             'lesson:id,section_id,title',
             'lesson.section:id,grade_id,name',
-            'questions',
+            'questions.options',
         ]);
 
         return response()->json([
@@ -396,26 +433,76 @@ class AdminExamController extends Controller
             ], 404);
         }
 
-        $validated = $request->validate([
-            'question_text' => ['required', 'string'],
-            'points' => ['required', 'integer', 'min:1'],
-        ]);
+        $rawQuestions = $request->input('questions');
+        if (! is_array($rawQuestions)) {
+            $questionText = $request->input('question_text') ?? $request->input('question') ?? $request->input('title');
+            if (! $questionText) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The question text is required.',
+                    'errors' => [
+                        'question_text' => ['The question text is required.'],
+                    ],
+                ], 422);
+            }
 
-        $sortOrder = ((int) $examModel->questions()->max('sort_order')) + 1;
+            $rawQuestions = [
+                [
+                    'question_text' => $questionText,
+                    'points' => $request->input('points', 1),
+                    'sort_order' => $request->input('sort_order'),
+                    'options' => $request->input('options', []),
+                ],
+            ];
+        }
 
-        $question = $examModel->questions()->create([
-            'question_text' => $validated['question_text'],
-            'points' => $validated['points'],
-            'sort_order' => $sortOrder,
-        ]);
+        $createdQuestions = [];
+        $currentMaxSort = (int) $examModel->questions()->max('sort_order');
 
-        $question->load('options');
+        foreach ($rawQuestions as $q) {
+            if (! is_array($q)) {
+                continue;
+            }
+
+            $qText = $q['question_text'] ?? $q['question'] ?? $q['title'] ?? null;
+            if (! $qText) {
+                continue;
+            }
+
+            $currentMaxSort++;
+            $sortOrder = isset($q['sort_order']) ? (int) $q['sort_order'] : $currentMaxSort;
+
+            $question = $examModel->questions()->create([
+                'question_text' => $qText,
+                'points' => max(1, (int) ($q['points'] ?? 1)),
+                'sort_order' => $sortOrder,
+            ]);
+
+            $rawOptions = $q['options'] ?? [];
+            if (is_array($rawOptions)) {
+                foreach ($rawOptions as $optIndex => $opt) {
+                    $optText = is_string($opt) ? $opt : ($opt['option_text'] ?? $opt['option'] ?? $opt['text'] ?? '');
+                    $isCorrect = is_string($opt) ? ($optIndex === 0) : filter_var($opt['is_correct'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+                    $question->options()->create([
+                        'option_text' => (string) $optText,
+                        'is_correct' => $isCorrect,
+                        'sort_order' => (int) ($opt['sort_order'] ?? ($optIndex + 1)),
+                    ]);
+                }
+            }
+
+            $question->load('options');
+            $createdQuestions[] = $question;
+        }
 
         return response()->json([
             'success' => true,
             'message' => 'Question created successfully.',
             'data' => [
-                'question' => $question,
+                'question' => $createdQuestions[0] ?? null,
+                'questions' => $createdQuestions,
+                'questions_count' => $examModel->questions()->count(),
             ],
         ], 201);
     }

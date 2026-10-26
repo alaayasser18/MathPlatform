@@ -953,6 +953,54 @@
                                         "type": "string",
                                         "format": "uri",
                                         "example": "https://www.youtube.com/watch?v=XXXXXXXXXXX"
+                                    },
+                                    "quiz_title": {
+                                        "type": "string",
+                                        "example": "اختبار الدرس الأول",
+                                        "nullable": true
+                                    },
+                                    "duration_minutes": {
+                                        "type": "integer",
+                                        "example": 20,
+                                        "nullable": true
+                                    },
+                                    "passing_percentage": {
+                                        "type": "integer",
+                                        "example": 60,
+                                        "nullable": true
+                                    },
+                                    "questions": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "question_text": {
+                                                    "type": "string",
+                                                    "example": "ما هو ناتج 2 + 2؟"
+                                                },
+                                                "points": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "options": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "option_text": {
+                                                                "type": "string",
+                                                                "example": "4"
+                                                            },
+                                                            "is_correct": {
+                                                                "type": "boolean",
+                                                                "example": true
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "nullable": true
                                     }
                                 },
                                 "type": "object"
@@ -979,6 +1027,42 @@
             }
         },
         "/api/v1/admin/lessons/{lesson}": {
+            "get": {
+                "tags": [
+                    "Admin Lessons"
+                ],
+                "summary": "Get details of a single lesson for admin",
+                "description": "Get details of a single lesson for admin.",
+                "operationId": "adminLessonsShow",
+                "parameters": [
+                    {
+                        "name": "lesson",
+                        "in": "path",
+                        "description": "Lesson ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lesson retrieved successfully"
+                    },
+                    "404": {
+                        "description": "Lesson not found"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
             "delete": {
                 "tags": [
                     "Admin Lessons"

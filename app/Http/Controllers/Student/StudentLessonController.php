@@ -109,7 +109,8 @@ class StudentLessonController extends Controller
                             'duration_minutes',
                             'passing_percentage',
                             'is_active',
-                        ]);
+                        ])
+                        ->withCount('questions');
                 },
             ])
             ->orderBy('section_id')
@@ -244,7 +245,8 @@ class StudentLessonController extends Controller
                             'passing_percentage',
                             'duration_minutes',
                             'is_active',
-                        ]);
+                        ])
+                        ->withCount('questions');
                 },
                 'materials' => function ($query) {
                     $query->where('is_active', true);

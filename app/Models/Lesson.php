@@ -25,6 +25,15 @@ class Lesson extends Model
         'is_active' => 'boolean',
     ];
 
+    protected $appends = [
+        'quiz',
+    ];
+
+    public function getQuizAttribute()
+    {
+        return $this->relationLoaded('exam') ? $this->exam : $this->exam()->first();
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Relationships

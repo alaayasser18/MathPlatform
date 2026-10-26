@@ -13,17 +13,77 @@ class StoreQuizQuestionsRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if (! $this->has('questions') && $this->has('question_text')) {
-            $this->merge([
-                'questions' => [
-                    [
-                        'question_text' => $this->input('question_text'),
-                        'points' => $this->input('points', 1),
-                        'sort_order' => $this->input('sort_order'),
-                        'options' => $this->input('options', []),
-                    ],
+        $rawQuestions = $this->input('questions');
+
+        // Handle single question payload at root level
+        if (! $rawQuestions && ($this->has('question_text') || $this->has('question'))) {
+            $rawQuestions = [
+                [
+                    'question_text' => $this->input('question_text') ?? $this->input('question'),
+                    'points' => $this->input('points', 1),
+                    'sort_order' => $this->input('sort_order', 1),
+                    'options' => $this->input('options', []),
                 ],
-            ]);
+            ];
+        }
+
+        // If questions is present, normalize every question and its options
+        if (is_array($rawQuestions)) {
+            $normalizedQuestions = [];
+
+            foreach ($rawQuestions as $index => $q) {
+                if (! is_array($q)) {
+                    continue;
+                }
+
+                $qText = $q['question_text'] ?? $q['question'] ?? $q['title'] ?? null;
+                $points = isset($q['points']) ? (int) $q['points'] : 1;
+                $sortOrder = isset($q['sort_order']) ? (int) $q['sort_order'] : ($index + 1);
+
+                $rawOptions = $q['options'] ?? [];
+                $normalizedOptions = [];
+
+                if (is_array($rawOptions)) {
+                    $isCorrectExplicitlyProvided = false;
+                    foreach ($rawOptions as $opt) {
+                        if (is_array($opt) && array_key_exists('is_correct', $opt)) {
+                            $isCorrectExplicitlyProvided = true;
+                            break;
+                        }
+                    }
+
+                    foreach ($rawOptions as $optIndex => $opt) {
+                        if (is_string($opt)) {
+                            $optText = $opt;
+                            $isCorrect = ($optIndex === 0);
+                        } elseif (is_array($opt)) {
+                            $optText = $opt['option_text'] ?? $opt['option'] ?? $opt['text'] ?? $opt['title'] ?? '';
+                            if (array_key_exists('is_correct', $opt)) {
+                                $isCorrect = filter_var($opt['is_correct'], FILTER_VALIDATE_BOOLEAN);
+                            } else {
+                                $isCorrect = (! $isCorrectExplicitlyProvided && $optIndex === 0);
+                            }
+                        } else {
+                            continue;
+                        }
+
+                        $normalizedOptions[] = [
+                            'option_text' => (string) $optText,
+                            'is_correct' => $isCorrect,
+                            'sort_order' => $opt['sort_order'] ?? ($optIndex + 1),
+                        ];
+                    }
+                }
+
+                $normalizedQuestions[] = [
+                    'question_text' => $qText,
+                    'points' => max(1, $points),
+                    'sort_order' => $sortOrder,
+                    'options' => $normalizedOptions,
+                ];
+            }
+
+            $this->merge(['questions' => $normalizedQuestions]);
         }
     }
 
@@ -37,12 +97,12 @@ class StoreQuizQuestionsRequest extends FormRequest
 
             'questions' => ['required', 'array', 'min:1'],
             'questions.*.question_text' => ['required', 'string'],
-            'questions.*.points' => ['required', 'integer', 'min:1'],
+            'questions.*.points' => ['nullable', 'integer', 'min:1'],
             'questions.*.sort_order' => ['nullable', 'integer', 'min:0'],
 
-            'questions.*.options' => ['required', 'array', 'min:2'],
-            'questions.*.options.*.option_text' => ['required', 'string'],
-            'questions.*.options.*.is_correct' => ['required', 'boolean'],
+            'questions.*.options' => ['nullable', 'array'],
+            'questions.*.options.*.option_text' => ['required_with:questions.*.options', 'string'],
+            'questions.*.options.*.is_correct' => ['nullable', 'boolean'],
             'questions.*.options.*.sort_order' => ['nullable', 'integer', 'min:0'],
         ];
     }
@@ -54,12 +114,7 @@ class StoreQuizQuestionsRequest extends FormRequest
             'questions.array' => 'Questions must be an array.',
             'questions.min' => 'At least one question is required.',
             'questions.*.question_text.required' => 'The question text is required.',
-            'questions.*.points.required' => 'Question points are required.',
-            'questions.*.points.min' => 'Question points must be at least 1.',
-            'questions.*.options.required' => 'Each question must have options.',
-            'questions.*.options.min' => 'Each question must have at least 2 options.',
             'questions.*.options.*.option_text.required' => 'Option text is required.',
-            'questions.*.options.*.is_correct.required' => 'Option correctness (is_correct) is required.',
         ];
     }
 
@@ -72,7 +127,7 @@ class StoreQuizQuestionsRequest extends FormRequest
             }
 
             foreach ($questions as $qIndex => $qData) {
-                if (! isset($qData['options']) || ! is_array($qData['options'])) {
+                if (! isset($qData['options']) || ! is_array($qData['options']) || empty($qData['options'])) {
                     continue;
                 }
 

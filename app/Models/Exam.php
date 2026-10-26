@@ -26,6 +26,21 @@ class Exam extends Model
         'is_active' => 'boolean',
     ];
 
+    protected $appends = [
+        'questions_count',
+    ];
+
+    public function getQuestionsCountAttribute(): int
+    {
+        if (array_key_exists('questions_count', $this->attributes)) {
+            return (int) $this->attributes['questions_count'];
+        }
+
+        return $this->relationLoaded('questions')
+            ? $this->questions->count()
+            : $this->questions()->count();
+    }
+
     public function lesson(): BelongsTo
     {
         return $this->belongsTo(Lesson::class);

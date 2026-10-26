@@ -22,6 +22,21 @@ class Option extends Model
         'sort_order' => 'integer',
     ];
 
+    protected $appends = [
+        'option',
+        'text',
+    ];
+
+    public function getOptionAttribute(): string
+    {
+        return $this->option_text ?? '';
+    }
+
+    public function getTextAttribute(): string
+    {
+        return $this->option_text ?? '';
+    }
+
     public function question(): BelongsTo
     {
         return $this->belongsTo(Question::class);

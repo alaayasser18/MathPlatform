@@ -195,6 +195,11 @@ Route::prefix('v1')->group(function () {
                 [AdminLessonController::class, 'index']
             );
 
+            Route::get(
+                '/lessons/{lesson}',
+                [AdminLessonController::class, 'show']
+            );
+
             Route::post(
                 '/lessons',
                 [AdminLessonController::class, 'store']

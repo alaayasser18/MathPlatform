@@ -260,4 +260,55 @@ class AdminLessonQuizTest extends TestCase
             'points' => 3,
         ]);
     }
+
+    public function test_admin_can_create_lesson_with_questions_directly(): void
+    {
+        Sanctum::actingAs($this->admin, ['*'], 'sanctum');
+
+        $payload = [
+            'grade_id' => $this->lesson->section->grade_id,
+            'section_name' => 'الجبر',
+            'title' => 'المحددات',
+            'video_url' => 'https://www.youtube.com/watch?v=12345678901',
+            'quiz_title' => 'اختبار درس المحددات',
+            'duration_minutes' => 20,
+            'passing_percentage' => 70,
+            'questions' => [
+                [
+                    'question_text' => 'ما هي قيمة محدد الوحدة؟',
+                    'points' => 2,
+                    'options' => [
+                        ['option_text' => '1', 'is_correct' => true],
+                        ['option_text' => '0', 'is_correct' => false],
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->postJson('/api/v1/admin/lessons', $payload);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.lesson.exam.title', 'اختبار درس المحددات')
+            ->assertJsonPath('data.lesson.exam.questions.0.question_text', 'ما هي قيمة محدد الوحدة؟')
+            ->assertJsonPath('data.lesson.exam.questions.0.options.0.option_text', '1');
+
+        $lessonId = $response->json('data.lesson.id');
+        $examId = $response->json('data.lesson.exam.id');
+
+        // Check single lesson get endpoint
+        $showResponse = $this->getJson("/api/v1/admin/lessons/{$lessonId}");
+        $showResponse->assertStatus(200)
+            ->assertJsonPath('data.lesson.exam.questions.0.question_text', 'ما هي قيمة محدد الوحدة؟');
+
+        // Check lessons list eager loads questions and options
+        $listResponse = $this->getJson('/api/v1/admin/lessons');
+        $listResponse->assertStatus(200)
+            ->assertJsonPath('data.lessons.1.exam.questions.0.question_text', 'ما هي قيمة محدد الوحدة؟');
+
+        // Check exams index also shows questions
+        $examListResponse = $this->getJson('/api/v1/admin/exams');
+        $examListResponse->assertStatus(200)
+            ->assertJsonPath('data.exams.0.questions.0.question_text', 'ما هي قيمة محدد الوحدة؟');
+    }
 }
