@@ -254,4 +254,83 @@ class QuizAnswersTest extends TestCase
             ->assertJsonPath('data.answers.0.selected_option.id', $optWrong->id)
             ->assertJsonPath('data.answers.0.correct_option.id', $optCorrect->id);
     }
+
+    public function test_submitting_exam_with_unanswered_questions_stores_only_answered_and_counts_rest_as_wrong(): void
+    {
+        Sanctum::actingAs($this->student, ['*'], 'sanctum');
+
+        $video = Video::create([
+            'lesson_id' => $this->lesson->id,
+            'title' => 'شرح الفيديو',
+            'video_url' => 'https://www.youtube.com/watch?v=sample2',
+            'sort_order' => 1,
+            'duration_seconds' => 100,
+            'completion_percentage' => 90,
+            'is_active' => true,
+        ]);
+
+        VideoProgress::create([
+            'student_id' => $this->student->id,
+            'video_id' => $video->id,
+            'subscription_id' => $this->subscription->id,
+            'watched_seconds' => 100,
+            'is_completed' => true,
+        ]);
+
+        $q1 = $this->exam->questions()->create([
+            'question_text' => 'سؤال 1',
+            'points' => 5,
+            'sort_order' => 1,
+        ]);
+        $opt1Correct = $q1->options()->create(['option_text' => 'أ', 'is_correct' => true, 'sort_order' => 1]);
+
+        $q2 = $this->exam->questions()->create([
+            'question_text' => 'سؤال 2 لم تتم إجابته بسبب انتهاء الوقت',
+            'points' => 5,
+            'sort_order' => 2,
+        ]);
+        $q2->options()->create(['option_text' => 'ب', 'is_correct' => true, 'sort_order' => 1]);
+
+        $attempt = ExamAttempt::create([
+            'student_id' => $this->student->id,
+            'exam_id' => $this->exam->id,
+            'subscription_id' => $this->subscription->id,
+            'started_at' => now()->subMinutes(16), // Time expired
+        ]);
+
+        // Student submits only q1 because time expired
+        $response = $this->withoutMiddleware(EnsureTrustedDevice::class)
+            ->postJson("/api/v1/student/exams/{$this->exam->id}/submit", [
+                'attempt_id' => $attempt->id,
+                'answers' => [
+                    ['question_id' => $q1->id, 'option_id' => $opt1Correct->id],
+                ],
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.score', 5)
+            ->assertJsonPath('data.total_score', 10)
+            ->assertJsonPath('data.percentage', 50);
+
+        // Only 1 answered question saved in DB; unanswered question has no record
+        $this->assertDatabaseCount('exam_attempt_answers', 1);
+        $this->assertDatabaseHas('exam_attempt_answers', [
+            'exam_attempt_id' => $attempt->id,
+            'question_id' => $q1->id,
+            'is_correct' => true,
+        ]);
+        $this->assertDatabaseMissing('exam_attempt_answers', [
+            'exam_attempt_id' => $attempt->id,
+            'question_id' => $q2->id,
+        ]);
+
+        // Cannot submit again
+        $secondSubmit = $this->withoutMiddleware(EnsureTrustedDevice::class)
+            ->postJson("/api/v1/student/exams/{$this->exam->id}/submit", [
+                'attempt_id' => $attempt->id,
+                'answers' => [],
+            ]);
+        $secondSubmit->assertStatus(422);
+    }
 }
+

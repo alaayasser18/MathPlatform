@@ -74,6 +74,76 @@ class AdminStudentController extends Controller
     }
 
     #[OA\Get(
+        path: '/api/v1/admin/students/active',
+        operationId: 'getActiveStudents',
+        summary: 'Get active approved students',
+        description: 'Returns only students who have an active approved subscription.',
+        tags: ['Admin Students'],
+        security: [
+            ['sanctum' => []],
+        ],
+        parameters: [
+            new OA\Parameter(
+                name: 'grade_id',
+                in: 'query',
+                required: false,
+                description: 'Filter by Grade ID',
+                schema: new OA\Schema(type: 'integer'),
+                example: 1
+            ),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Active students retrieved successfully'
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated'
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Admin access required'
+            ),
+        ]
+    )]
+    public function activeStudents(Request $request): JsonResponse
+    {
+        if (! $request->user() instanceof Admin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Admin access required.',
+            ], 403);
+        }
+
+        $query = Student::query()
+            ->with([
+                'grade:id,name',
+                'subscriptions' => function ($q) {
+                    $q->where('approval_status', 'approved')
+                        ->where('status', 'active')
+                        ->with('subscriptionCode');
+                },
+            ])
+            ->whereHas('subscriptions', function ($q) {
+                $q->where('approval_status', 'approved')
+                    ->where('status', 'active');
+            });
+
+        if ($request->has('grade_id') && (int) $request->query('grade_id') > 0) {
+            $query->where('grade_id', (int) $request->query('grade_id'));
+        }
+
+        $students = $query->latest('id')->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Active students retrieved successfully.',
+            'data' => StudentResource::collection($students),
+        ]);
+    }
+
+    #[OA\Get(
         path: '/api/v1/admin/students/{student}',
         operationId: 'getStudentByAdmin',
         summary: 'Get student details',

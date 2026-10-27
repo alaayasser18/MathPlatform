@@ -112,13 +112,16 @@ class AdminActivationService
                 'subscriptions' => function ($query) {
                     $query
                         ->where('approval_status', 'approved')
+                        ->where('status', 'active')
                         ->with([
                             'subscriptionCode:id,code,expires_at,approval_status'
                         ]);
                 },
             ])
             ->whereHas('subscriptions', function ($query) {
-                $query->where('approval_status', 'approved');
+                $query
+                    ->where('approval_status', 'approved')
+                    ->where('status', 'active');
             })
             ->latest()
             ->paginate(15);

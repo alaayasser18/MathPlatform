@@ -149,6 +149,11 @@ Route::prefix('v1')->group(function () {
             );
 
             Route::get(
+                '/students/active',
+                [AdminStudentController::class, 'activeStudents']
+            );
+
+            Route::get(
                 '/students/{student}',
                 [AdminStudentController::class, 'show']
             );

@@ -1790,6 +1790,44 @@
                 ]
             }
         },
+        "/api/v1/admin/students/active": {
+            "get": {
+                "tags": [
+                    "Admin Students"
+                ],
+                "summary": "Get active approved students",
+                "description": "Returns only students who have an active approved subscription.",
+                "operationId": "getActiveStudents",
+                "parameters": [
+                    {
+                        "name": "grade_id",
+                        "in": "query",
+                        "description": "Filter by Grade ID",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Active students retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Admin access required"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/v1/admin/students/{student}": {
             "get": {
                 "tags": [
@@ -2420,7 +2458,7 @@
                     "Student Exams"
                 ],
                 "summary": "Submit exam answers",
-                "description": "All questions must be answered. The backend calculates the score and determines whether the student passed.",
+                "description": "Submits exam answers. Unanswered questions are counted as incorrect without saving an answer record.",
                 "operationId": "studentExamSubmit",
                 "parameters": [
                     {
@@ -2440,8 +2478,7 @@
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "attempt_id",
-                                    "answers"
+                                    "attempt_id"
                                 ],
                                 "properties": {
                                     "attempt_id": {

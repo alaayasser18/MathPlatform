@@ -18,6 +18,11 @@ class SubscriptionCodeService
 
         $students = Student::query()
             ->where('grade_id', $gradeId)
+            ->whereHas('subscriptions', function ($query) {
+                $query
+                    ->where('approval_status', 'approved')
+                    ->where('status', 'active');
+            })
             ->with([
                 'subscriptions' => function ($query) {
                     $query

@@ -380,7 +380,7 @@ class StudentExamController extends Controller
         path: '/api/v1/student/exams/{exam}/submit',
         operationId: 'studentExamSubmit',
         summary: 'Submit exam answers',
-        description: 'All questions must be answered. The backend calculates the score and determines whether the student passed.',
+        description: 'Submits exam answers. Unanswered questions are counted as incorrect without saving an answer record.',
         tags: ['Student Exams'],
         security: [['sanctum' => []]],
         parameters: [
@@ -396,7 +396,7 @@ class StudentExamController extends Controller
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['attempt_id', 'answers'],
+                required: ['attempt_id'],
                 properties: [
                     new OA\Property(
                         property: 'attempt_id',
@@ -445,9 +445,8 @@ class StudentExamController extends Controller
             ],
 
             'answers' => [
-                'required',
+                'nullable',
                 'array',
-                'min:1',
             ],
 
             'answers.*.question_id' => [
@@ -461,6 +460,8 @@ class StudentExamController extends Controller
                 'integer',
             ],
         ]);
+
+        $submittedAnswers = $validated['answers'] ?? [];
 
         $student = $request->user();
 
@@ -538,29 +539,20 @@ class StudentExamController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Make sure every question is answered
+        | Make sure submitted questions belong to this exam
         |--------------------------------------------------------------------------
         */
-        $submittedQuestionIds = collect($validated['answers'])
+        $submittedQuestionIds = collect($submittedAnswers)
             ->pluck('question_id')
-            ->map(fn ($id) => (int) $id)
-            ->sort()
-            ->values();
+            ->map(fn ($id) => (int) $id);
 
-        $examQuestionIds = $questions
-            ->keys()
-            ->map(fn ($id) => (int) $id)
-            ->sort()
-            ->values();
-
-        if (
-            $submittedQuestionIds->count() !== $examQuestionIds->count() ||
-            $submittedQuestionIds->toArray() !== $examQuestionIds->toArray()
-        ) {
-            return response()->json([
-                'success' => false,
-                'message' => 'You must answer all exam questions before submitting.',
-            ], 422);
+        foreach ($submittedQuestionIds as $qId) {
+            if (! $questions->has($qId)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid question submitted for this exam.',
+                ], 422);
+            }
         }
 
         /*
@@ -568,20 +560,13 @@ class StudentExamController extends Controller
         | Validate every selected option belongs to its question
         |--------------------------------------------------------------------------
         */
-        foreach ($validated['answers'] as $answer) {
+        foreach ($submittedAnswers as $answer) {
             $questionId = (int) $answer['question_id'];
             $optionId = (int) $answer['option_id'];
 
             $question = $questions->get($questionId);
 
-            if (! $question) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Invalid question submitted.',
-                ], 422);
-            }
-
-            $optionBelongsToQuestion = $question->options
+            $optionBelongsToQuestion = $question && $question->options
                 ->contains('id', $optionId);
 
             if (! $optionBelongsToQuestion) {
@@ -597,7 +582,7 @@ class StudentExamController extends Controller
         | Calculate score
         |--------------------------------------------------------------------------
         */
-        $answers = collect($validated['answers'])
+        $answers = collect($submittedAnswers)
             ->keyBy(fn ($answer) => (int) $answer['question_id']);
 
         $score = 0;
@@ -607,23 +592,26 @@ class StudentExamController extends Controller
         foreach ($questions as $question) {
             $totalScore += (int) $question->points;
 
-            $selectedOptionId = (int) $answers
-                ->get($question->id)['option_id'];
+            $answer = $answers->get($question->id);
 
-            $selectedOption = $question->options
-                ->firstWhere('id', $selectedOptionId);
+            if ($answer !== null) {
+                $selectedOptionId = (int) $answer['option_id'];
 
-            $isCorrect = $selectedOption && $selectedOption->is_correct;
+                $selectedOption = $question->options
+                    ->firstWhere('id', $selectedOptionId);
 
-            if ($isCorrect) {
-                $score += (int) $question->points;
+                $isCorrect = $selectedOption && (bool) $selectedOption->is_correct;
+
+                if ($isCorrect) {
+                    $score += (int) $question->points;
+                }
+
+                $answersToSave[] = [
+                    'question_id' => $question->id,
+                    'option_id' => $selectedOptionId,
+                    'is_correct' => (bool) $isCorrect,
+                ];
             }
-
-            $answersToSave[] = [
-                'question_id' => $question->id,
-                'option_id' => $selectedOptionId,
-                'is_correct' => (bool) $isCorrect,
-            ];
         }
 
         $percentage = $totalScore > 0
