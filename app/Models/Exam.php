@@ -12,6 +12,7 @@ class Exam extends Model
     use HasFactory;
 
     protected $fillable = [
+        'grade_id',
         'lesson_id',
         'title',
         'description',
@@ -21,6 +22,7 @@ class Exam extends Model
     ];
 
     protected $casts = [
+        'grade_id' => 'integer',
         'duration_minutes' => 'integer',
         'passing_percentage' => 'integer',
         'is_active' => 'boolean',
@@ -39,6 +41,11 @@ class Exam extends Model
         return $this->relationLoaded('questions')
             ? $this->questions->count()
             : $this->questions()->count();
+    }
+
+    public function grade(): BelongsTo
+    {
+        return $this->belongsTo(Grade::class);
     }
 
     public function lesson(): BelongsTo

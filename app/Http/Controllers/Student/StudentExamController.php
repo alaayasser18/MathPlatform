@@ -68,14 +68,24 @@ class StudentExamController extends Controller
 
         $exams = Exam::query()
             ->where('is_active', true)
-            ->whereHas('lesson.section', function ($query) use ($student) {
-                $query->where('grade_id', $student->grade_id)
-                    ->where('is_active', true);
+            ->where(function ($query) use ($student) {
+                $query->whereHas('lesson.section', function ($q) use ($student) {
+                    $q->where('grade_id', $student->grade_id)
+                        ->where('is_active', true);
+                })->orWhere(function ($q) use ($student) {
+                    $q->whereNull('lesson_id')
+                        ->where(function ($gradeQuery) use ($student) {
+                            $gradeQuery->where('grade_id', $student->grade_id)
+                                ->orWhereNull('grade_id');
+                        });
+                });
             })
             ->with([
+                'grade:id,name',
                 'lesson.section:id,grade_id,name,sort_order',
             ])
             ->withCount('questions')
+            ->orderBy('id')
             ->get();
 
         $studentAttempts = ExamAttempt::query()
@@ -86,13 +96,7 @@ class StudentExamController extends Controller
             ->groupBy('exam_id');
 
         $examList = $exams->map(function (Exam $exam) use ($student, $subscription, $studentAttempts) {
-            $isUnlocked = $exam->lesson
-                ? $this->learningProgressService->isExamUnlocked(
-                    $student->id,
-                    $subscription->id,
-                    $exam->lesson
-                )
-                : false;
+            $isUnlocked = $this->getExamLockMessage($student, $subscription->id, $exam) === null;
 
             $attempts = $studentAttempts->get($exam->id, collect());
             $bestAttempt = $attempts->sortByDesc('score')->first();
@@ -102,7 +106,9 @@ class StudentExamController extends Controller
             return [
                 'id' => $exam->id,
                 'title' => $exam->title,
+                'grade_id' => $exam->grade_id,
                 'lesson_id' => $exam->lesson_id,
+                'is_standalone' => $exam->lesson_id === null,
                 'lesson_title' => $exam->lesson?->title,
                 'section_name' => $exam->lesson?->section?->name,
                 'duration_minutes' => $exam->duration_minutes,
@@ -173,6 +179,7 @@ class StudentExamController extends Controller
         $examModel = Exam::query()
             ->where('is_active', true)
             ->with([
+                'grade:id,name',
                 'lesson.section',
                 'questions' => function ($query) {
                     $query->with([
@@ -198,11 +205,7 @@ class StudentExamController extends Controller
 
         $student->loadMissing('grade');
 
-        if (
-            ! $student->grade_id ||
-            ! $examModel->lesson?->section ||
-            $examModel->lesson->section->grade_id !== $student->grade_id
-        ) {
+        if (! $this->canStudentAccessExam($student, $examModel)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You are not allowed to access this exam.',
@@ -219,17 +222,12 @@ class StudentExamController extends Controller
             ], 403);
         }
 
-        $isUnlocked = $this->learningProgressService
-            ->isExamUnlocked(
-                $student->id,
-                $subscription->id,
-                $examModel->lesson
-            );
+        $lockMessage = $this->getExamLockMessage($student, $subscription->id, $examModel);
 
-        if (! $isUnlocked) {
+        if ($lockMessage !== null) {
             return response()->json([
                 'success' => false,
-                'message' => 'This exam is locked. Complete all lesson videos first.',
+                'message' => $lockMessage,
             ], 403);
         }
 
@@ -279,6 +277,7 @@ class StudentExamController extends Controller
         $examModel = Exam::query()
             ->where('is_active', true)
             ->with([
+                'grade:id,name',
                 'lesson.section',
                 'questions',
             ])
@@ -293,11 +292,7 @@ class StudentExamController extends Controller
 
         $student->loadMissing('grade');
 
-        if (
-            ! $student->grade_id ||
-            ! $examModel->lesson?->section ||
-            $examModel->lesson->section->grade_id !== $student->grade_id
-        ) {
+        if (! $this->canStudentAccessExam($student, $examModel)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You are not allowed to access this exam.',
@@ -314,14 +309,12 @@ class StudentExamController extends Controller
             ], 403);
         }
 
-        if (! $this->learningProgressService->isExamUnlocked(
-            $student->id,
-            $subscription->id,
-            $examModel->lesson
-        )) {
+        $lockMessage = $this->getExamLockMessage($student, $subscription->id, $examModel);
+
+        if ($lockMessage !== null) {
             return response()->json([
                 'success' => false,
-                'message' => 'This exam is locked. Complete all lesson videos first.',
+                'message' => $lockMessage,
             ], 403);
         }
 
@@ -468,6 +461,7 @@ class StudentExamController extends Controller
         $examModel = Exam::query()
             ->where('is_active', true)
             ->with([
+                'grade:id,name',
                 'lesson.section',
                 'questions.options',
             ])
@@ -482,11 +476,7 @@ class StudentExamController extends Controller
 
         $student->loadMissing('grade');
 
-        if (
-            ! $student->grade_id ||
-            ! $examModel->lesson?->section ||
-            $examModel->lesson->section->grade_id !== $student->grade_id
-        ) {
+        if (! $this->canStudentAccessExam($student, $examModel)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You are not allowed to submit this exam.',
@@ -503,14 +493,12 @@ class StudentExamController extends Controller
             ], 403);
         }
 
-        if (! $this->learningProgressService->isExamUnlocked(
-            $student->id,
-            $subscription->id,
-            $examModel->lesson
-        )) {
+        $lockMessage = $this->getExamLockMessage($student, $subscription->id, $examModel);
+
+        if ($lockMessage !== null) {
             return response()->json([
                 'success' => false,
-                'message' => 'This exam is locked. Complete all lesson videos first.',
+                'message' => $lockMessage,
             ], 403);
         }
 
@@ -692,7 +680,10 @@ class StudentExamController extends Controller
 
         $examModel = Exam::query()
             ->where('is_active', true)
-            ->with('lesson.section')
+            ->with([
+                'grade:id,name',
+                'lesson.section',
+            ])
             ->find($exam);
 
         if (! $examModel) {
@@ -702,11 +693,9 @@ class StudentExamController extends Controller
             ], 404);
         }
 
-        if (
-            ! $student->grade_id ||
-            ! $examModel->lesson?->section ||
-            $examModel->lesson->section->grade_id !== $student->grade_id
-        ) {
+        $student->loadMissing('grade');
+
+        if (! $this->canStudentAccessExam($student, $examModel)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You are not allowed to view this exam attempts.',
@@ -742,5 +731,43 @@ class StudentExamController extends Controller
                 'attempts' => $attempts,
             ],
         ]);
+    }
+
+    private function canStudentAccessExam(Student $student, Exam $exam): bool
+    {
+        if (! $student->grade_id) {
+            return false;
+        }
+
+        if ($exam->lesson_id !== null) {
+            return (bool) ($exam->lesson?->section && $exam->lesson->section->grade_id === $student->grade_id);
+        }
+
+        return $exam->grade_id === null || $exam->grade_id === $student->grade_id;
+    }
+
+    private function getExamLockMessage(Student $student, int $subscriptionId, Exam $exam): ?string
+    {
+        if (! $exam->lesson) {
+            return null;
+        }
+
+        if (! $this->learningProgressService->isLessonUnlocked(
+            $student->id,
+            $subscriptionId,
+            $exam->lesson
+        )) {
+            return 'This exam is locked. Complete previous lessons and exams first.';
+        }
+
+        if (! $this->learningProgressService->isLessonCompleted(
+            $student->id,
+            $subscriptionId,
+            $exam->lesson
+        )) {
+            return 'This exam is locked. Complete all lesson videos first.';
+        }
+
+        return null;
     }
 }

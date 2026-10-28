@@ -61,6 +61,11 @@ class Lesson extends Model
         return $this->hasOne(Exam::class);
     }
 
+    public function exams(): HasMany
+    {
+        return $this->hasMany(Exam::class);
+    }
+
     public function progress(): HasMany
     {
         return $this->hasMany(LessonProgress::class);

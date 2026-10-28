@@ -98,7 +98,14 @@ class LearningProgressService
 
         $previousLesson = Lesson::query()
             ->where('section_id', $lesson->section_id)
-            ->where('sort_order', '<', $lessonSortOrder)
+            ->where('is_active', true)
+            ->where(function ($query) use ($lesson, $lessonSortOrder) {
+                $query->where('sort_order', '<', $lessonSortOrder)
+                    ->orWhere(function ($subQuery) use ($lesson, $lessonSortOrder) {
+                        $subQuery->where('sort_order', $lessonSortOrder)
+                            ->where('id', '<', $lesson->id);
+                    });
+            })
             ->orderByDesc('sort_order')
             ->orderByDesc('id')
             ->first();
@@ -117,14 +124,18 @@ class LearningProgressService
 
         $previousSection = $section->newQuery()
             ->where('grade_id', $section->grade_id)
+            ->where('is_active', true)
             ->where(function ($query) use ($section, $sectionSortOrder) {
                 $query
                     ->where('sort_order', '<', $sectionSortOrder)
-                    ->orWhere(function ($query) use ($section, $sectionSortOrder) {
-                        $query
+                    ->orWhere(function ($subQuery) use ($section, $sectionSortOrder) {
+                        $subQuery
                             ->where('sort_order', $sectionSortOrder)
                             ->where('id', '<', $section->id);
                     });
+            })
+            ->whereHas('lessons', function ($q) {
+                $q->where('is_active', true);
             })
             ->orderByDesc('sort_order')
             ->orderByDesc('id')
@@ -135,6 +146,7 @@ class LearningProgressService
         }
 
         return $previousSection->lessons()
+            ->where('is_active', true)
             ->orderByDesc('sort_order')
             ->orderByDesc('id')
             ->first();
@@ -230,11 +242,15 @@ class LearningProgressService
         int $subscriptionId,
         Video $video
     ): bool {
+        $requiredPercentage = (int) ($video->completion_percentage ?: self::VIDEO_COMPLETION_REQUIRED);
+
         return VideoProgress::query()
             ->where('student_id', $studentId)
-            ->where('subscription_id', $subscriptionId)
             ->where('video_id', $video->id)
-            ->where('is_completed', true)
+            ->where(function ($query) use ($requiredPercentage) {
+                $query->where('is_completed', true)
+                    ->orWhere('completion_percentage', '>=', $requiredPercentage);
+            })
             ->exists();
     }
 
@@ -286,7 +302,8 @@ class LearningProgressService
             $watchedDurationSeconds
         );
 
-        $isCompleted = $completionPercentage >= self::VIDEO_COMPLETION_REQUIRED;
+        $requiredPercentage = (int) ($video->completion_percentage ?: self::VIDEO_COMPLETION_REQUIRED);
+        $isCompleted = $completionPercentage >= $requiredPercentage;
 
         return DB::transaction(function () use (
             $studentId,
@@ -454,22 +471,24 @@ class LearningProgressService
 
         /*
         |--------------------------------------------------------------------------
-        | A lesson with no videos cannot be considered completed.
+        | If there are no active videos, video completion is satisfied.
         |--------------------------------------------------------------------------
         */
-
         if ($videos->isEmpty()) {
-            return false;
+            return true;
         }
 
         $completedCount = VideoProgress::query()
             ->where('student_id', $studentId)
-            ->where('subscription_id', $subscriptionId)
             ->whereIn('video_id', $videos->pluck('id'))
-            ->where('is_completed', true)
-            ->count();
+            ->where(function ($query) {
+                $query->where('is_completed', true)
+                    ->orWhere('completion_percentage', '>=', self::VIDEO_COMPLETION_REQUIRED);
+            })
+            ->distinct('video_id')
+            ->count('video_id');
 
-        return $completedCount === $videos->count();
+        return $completedCount >= $videos->count();
     }
 
     /*
@@ -479,15 +498,21 @@ class LearningProgressService
     */
 
     /**
-     * Determine whether the lesson exam is unlocked.
+     * Determine whether the exam is unlocked.
      *
-     * All active videos of the lesson must be completed first.
+     * If the exam is tied to a lesson, all active videos of the lesson must be completed
+     * and previous lessons/exams must be passed.
+     * If the exam is standalone (no lesson), it is unlocked automatically.
      */
     public function isExamUnlocked(
         int $studentId,
         int $subscriptionId,
-        Lesson $lesson
+        ?Lesson $lesson = null
     ): bool {
+        if (! $lesson) {
+            return true;
+        }
+
         if (! $this->isLessonUnlocked(
             $studentId,
             $subscriptionId,
@@ -511,7 +536,10 @@ class LearningProgressService
         int $subscriptionId,
         Lesson $lesson
     ): bool {
-        $exam = $lesson->exam;
+        $exam = $lesson->exams()
+            ->where('is_active', true)
+            ->latest('id')
+            ->first() ?? $lesson->exam;
 
         if (! $exam || ! $exam->is_active) {
             /*
@@ -524,7 +552,6 @@ class LearningProgressService
 
         return ExamAttempt::query()
             ->where('student_id', $studentId)
-            ->where('subscription_id', $subscriptionId)
             ->where('exam_id', $exam->id)
             ->where('is_passed', true)
             ->exists();

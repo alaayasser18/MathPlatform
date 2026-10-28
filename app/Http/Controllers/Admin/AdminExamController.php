@@ -33,12 +33,12 @@ class AdminExamController extends Controller
     {
         $exams = Exam::query()
             ->with([
+                'grade:id,name',
                 'lesson:id,section_id,title',
                 'lesson.section:id,grade_id,name',
                 'questions.options',
             ])
             ->withCount('questions')
-            ->orderBy('lesson_id')
             ->orderBy('id')
             ->get();
 
@@ -60,11 +60,18 @@ class AdminExamController extends Controller
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['lesson_id', 'title', 'passing_percentage'],
+                required: ['title', 'passing_percentage'],
                 properties: [
+                    new OA\Property(
+                        property: 'grade_id',
+                        type: 'integer',
+                        nullable: true,
+                        example: 1
+                    ),
                     new OA\Property(
                         property: 'lesson_id',
                         type: 'integer',
+                        nullable: true,
                         example: 1
                     ),
                     new OA\Property(
@@ -102,7 +109,8 @@ class AdminExamController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'lesson_id' => ['required', 'integer', 'exists:lessons,id'],
+            'grade_id' => ['nullable', 'integer', 'exists:grades,id'],
+            'lesson_id' => ['nullable', 'integer', 'exists:lessons,id'],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'duration_minutes' => ['nullable', 'integer', 'min:1'],
@@ -110,27 +118,37 @@ class AdminExamController extends Controller
             'questions' => ['nullable', 'array'],
         ]);
 
-        $lesson = Lesson::query()
-            ->with('exam')
-            ->find($validated['lesson_id']);
+        $lessonId = $validated['lesson_id'] ?? null;
+        $gradeId = $validated['grade_id'] ?? null;
 
-        if (!$lesson) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Lesson not found.',
-            ], 404);
+        if ($lessonId !== null) {
+            $lesson = Lesson::query()
+                ->with(['exam', 'section'])
+                ->find($lessonId);
+
+            if (! $lesson) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Lesson not found.',
+                ], 404);
+            }
+
+            if ($lesson->exam) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This lesson already has an exam.',
+                ], 422);
+            }
+
+            if ($gradeId === null && $lesson->section) {
+                $gradeId = $lesson->section->grade_id;
+            }
         }
 
-        if ($lesson->exam) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This lesson already has an exam.',
-            ], 422);
-        }
-
-        $exam = DB::transaction(function () use ($validated, $request) {
+        $exam = DB::transaction(function () use ($validated, $lessonId, $gradeId, $request) {
             $exam = Exam::create([
-                'lesson_id' => $validated['lesson_id'],
+                'grade_id' => $gradeId,
+                'lesson_id' => $lessonId,
                 'title' => $validated['title'],
                 'description' => $validated['description'] ?? null,
                 'duration_minutes' => $validated['duration_minutes'] ?? null,
@@ -173,6 +191,7 @@ class AdminExamController extends Controller
         });
 
         $exam->load([
+            'grade:id,name',
             'lesson:id,section_id,title',
             'lesson.section:id,grade_id,name',
             'questions.options',
@@ -212,13 +231,14 @@ class AdminExamController extends Controller
     {
         $examModel = Exam::query()
             ->with([
+                'grade:id,name',
                 'lesson:id,section_id,title',
                 'lesson.section:id,grade_id,name',
                 'questions.options',
             ])
             ->find($exam);
 
-        if (!$examModel) {
+        if (! $examModel) {
             return response()->json([
                 'success' => false,
                 'message' => 'Exam not found.',
@@ -254,6 +274,18 @@ class AdminExamController extends Controller
             required: true,
             content: new OA\JsonContent(
                 properties: [
+                    new OA\Property(
+                        property: 'grade_id',
+                        type: 'integer',
+                        nullable: true,
+                        example: 1
+                    ),
+                    new OA\Property(
+                        property: 'lesson_id',
+                        type: 'integer',
+                        nullable: true,
+                        example: 1
+                    ),
                     new OA\Property(
                         property: 'title',
                         type: 'string',
@@ -296,7 +328,7 @@ class AdminExamController extends Controller
     {
         $examModel = Exam::find($exam);
 
-        if (!$examModel) {
+        if (! $examModel) {
             return response()->json([
                 'success' => false,
                 'message' => 'Exam not found.',
@@ -304,6 +336,8 @@ class AdminExamController extends Controller
         }
 
         $validated = $request->validate([
+            'grade_id' => ['sometimes', 'nullable', 'integer', 'exists:grades,id'],
+            'lesson_id' => ['sometimes', 'nullable', 'integer', 'exists:lessons,id'],
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string'],
             'duration_minutes' => ['sometimes', 'nullable', 'integer', 'min:1'],
@@ -311,9 +345,31 @@ class AdminExamController extends Controller
             'is_active' => ['sometimes', 'boolean'],
         ]);
 
+        if (array_key_exists('lesson_id', $validated)) {
+            if ($validated['lesson_id'] !== null) {
+                $lesson = Lesson::query()->with(['exam', 'section'])->find($validated['lesson_id']);
+                if (! $lesson) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Lesson not found.',
+                    ], 404);
+                }
+                if ($lesson->exam && $lesson->exam->id !== $examModel->id) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'This lesson already has an exam.',
+                    ], 422);
+                }
+                if (! array_key_exists('grade_id', $validated) && $lesson->section) {
+                    $validated['grade_id'] = $lesson->section->grade_id;
+                }
+            }
+        }
+
         $examModel->update($validated);
 
         $examModel->load([
+            'grade:id,name',
             'lesson:id,section_id,title',
             'lesson.section:id,grade_id,name',
             'questions.options',
@@ -353,7 +409,7 @@ class AdminExamController extends Controller
     {
         $examModel = Exam::find($exam);
 
-        if (!$examModel) {
+        if (! $examModel) {
             return response()->json([
                 'success' => false,
                 'message' => 'Exam not found.',
@@ -426,7 +482,7 @@ class AdminExamController extends Controller
     {
         $examModel = Exam::find($exam);
 
-        if (!$examModel) {
+        if (! $examModel) {
             return response()->json([
                 'success' => false,
                 'message' => 'Exam not found.',
@@ -552,7 +608,7 @@ class AdminExamController extends Controller
     {
         $questionModel = Question::find($question);
 
-        if (!$questionModel) {
+        if (! $questionModel) {
             return response()->json([
                 'success' => false,
                 'message' => 'Question not found.',
@@ -604,7 +660,7 @@ class AdminExamController extends Controller
     {
         $questionModel = Question::find($question);
 
-        if (!$questionModel) {
+        if (! $questionModel) {
             return response()->json([
                 'success' => false,
                 'message' => 'Question not found.',
@@ -675,7 +731,7 @@ class AdminExamController extends Controller
     {
         $questionModel = Question::find($question);
 
-        if (!$questionModel) {
+        if (! $questionModel) {
             return response()->json([
                 'success' => false,
                 'message' => 'Question not found.',
@@ -766,7 +822,7 @@ class AdminExamController extends Controller
     {
         $optionModel = Option::find($option);
 
-        if (!$optionModel) {
+        if (! $optionModel) {
             return response()->json([
                 'success' => false,
                 'message' => 'Option not found.',
@@ -835,7 +891,7 @@ class AdminExamController extends Controller
     {
         $optionModel = Option::find($option);
 
-        if (!$optionModel) {
+        if (! $optionModel) {
             return response()->json([
                 'success' => false,
                 'message' => 'Option not found.',
