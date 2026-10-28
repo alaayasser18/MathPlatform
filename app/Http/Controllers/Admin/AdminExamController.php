@@ -114,7 +114,7 @@ class AdminExamController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'duration_minutes' => ['nullable', 'integer', 'min:1'],
-            'passing_percentage' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'passing_percentage' => ['nullable', 'integer', 'min:0', 'max:100'],
             'questions' => ['nullable', 'array'],
         ]);
 
@@ -341,7 +341,7 @@ class AdminExamController extends Controller
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string'],
             'duration_minutes' => ['sometimes', 'nullable', 'integer', 'min:1'],
-            'passing_percentage' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:100'],
+            'passing_percentage' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
 

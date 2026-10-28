@@ -93,7 +93,7 @@ class StoreQuizQuestionsRequest extends FormRequest
             'title' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'duration_minutes' => ['nullable', 'integer', 'min:1'],
-            'passing_percentage' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'passing_percentage' => ['nullable', 'integer', 'min:0', 'max:100'],
 
             'questions' => ['required', 'array', 'min:1'],
             'questions.*.question_text' => ['required', 'string'],
