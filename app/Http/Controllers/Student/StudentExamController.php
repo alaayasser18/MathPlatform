@@ -112,7 +112,9 @@ class StudentExamController extends Controller
                 'lesson_title' => $exam->lesson?->title,
                 'section_name' => $exam->lesson?->section?->name,
                 'duration_minutes' => $exam->duration_minutes,
-                'passing_percentage' => $exam->passing_percentage,
+                'passing_percentage' => $exam->passing_percentage !== null
+                    ? (int) $exam->passing_percentage
+                    : null,
                 'questions_count' => $exam->questions_count,
                 'is_unlocked' => $isUnlocked,
                 'is_passed' => $hasPassed,
@@ -240,7 +242,9 @@ class StudentExamController extends Controller
             'message' => 'Exam retrieved successfully.',
             'data' => [
                 'exam' => $examModel,
-                'passing_percentage' => (int) $examModel->passing_percentage,
+                'passing_percentage' => $examModel->passing_percentage !== null
+                    ? (int) $examModel->passing_percentage
+                    : null,
             ],
         ]);
     }
@@ -364,7 +368,9 @@ class StudentExamController extends Controller
                 'attempt_id' => $attempt->id,
                 'started_at' => $attempt->started_at,
                 'total_score' => $totalScore,
-                'passing_percentage' => (int) $examModel->passing_percentage,
+                'passing_percentage' => $examModel->passing_percentage !== null
+                    ? (int) $examModel->passing_percentage
+                    : null,
             ],
         ]);
     }
@@ -606,7 +612,11 @@ class StudentExamController extends Controller
             ? round(($score / $totalScore) * 100, 2)
             : 0;
 
-        $isPassed = $percentage >= (int) $examModel->passing_percentage;
+        $passingPercentage = $examModel->passing_percentage !== null
+            ? (int) $examModel->passing_percentage
+            : null;
+
+        $isPassed = $passingPercentage === null || $percentage >= $passingPercentage;
 
         DB::transaction(function () use (
             $attempt,
@@ -640,7 +650,9 @@ class StudentExamController extends Controller
                 'score' => $score,
                 'total_score' => $totalScore,
                 'percentage' => $percentage,
-                'passing_percentage' => (int) $examModel->passing_percentage,
+                'passing_percentage' => $examModel->passing_percentage !== null
+                    ? (int) $examModel->passing_percentage
+                    : null,
                 'is_passed' => $isPassed,
                 'next_lesson_unlocked' => $isPassed,
             ],
@@ -726,7 +738,9 @@ class StudentExamController extends Controller
                 'exam' => [
                     'id' => $examModel->id,
                     'title' => $examModel->title,
-                    'passing_percentage' => $examModel->passing_percentage,
+                    'passing_percentage' => $examModel->passing_percentage !== null
+                        ? (int) $examModel->passing_percentage
+                        : null,
                 ],
                 'attempts' => $attempts,
             ],

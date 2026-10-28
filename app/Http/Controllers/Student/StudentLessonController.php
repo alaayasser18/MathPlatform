@@ -565,7 +565,9 @@ class StudentLessonController extends Controller
                 'exam' => [
                     'id' => $lessonModel->exam->id,
                     'title' => $lessonModel->exam->title,
-                    'passing_percentage' => (int) $lessonModel->exam->passing_percentage,
+                    'passing_percentage' => $lessonModel->exam->passing_percentage !== null
+                        ? (int) $lessonModel->exam->passing_percentage
+                        : null,
                 ],
                 'attempt' => [
                     'id' => $attempt->id,

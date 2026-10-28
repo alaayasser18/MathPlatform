@@ -60,7 +60,7 @@ class AdminExamController extends Controller
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['title', 'passing_percentage'],
+                required: ['title'],
                 properties: [
                     new OA\Property(
                         property: 'grade_id',
@@ -114,7 +114,7 @@ class AdminExamController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'duration_minutes' => ['nullable', 'integer', 'min:1'],
-            'passing_percentage' => ['required', 'integer', 'min:1', 'max:100'],
+            'passing_percentage' => ['nullable', 'integer', 'min:1', 'max:100'],
             'questions' => ['nullable', 'array'],
         ]);
 
@@ -152,7 +152,7 @@ class AdminExamController extends Controller
                 'title' => $validated['title'],
                 'description' => $validated['description'] ?? null,
                 'duration_minutes' => $validated['duration_minutes'] ?? null,
-                'passing_percentage' => $validated['passing_percentage'],
+                'passing_percentage' => $validated['passing_percentage'] ?? null,
                 'is_active' => true,
             ]);
 
@@ -341,7 +341,7 @@ class AdminExamController extends Controller
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string'],
             'duration_minutes' => ['sometimes', 'nullable', 'integer', 'min:1'],
-            'passing_percentage' => ['sometimes', 'required', 'integer', 'min:1', 'max:100'],
+            'passing_percentage' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:100'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
 

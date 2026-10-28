@@ -320,7 +320,7 @@ class AdminLessonController extends Controller
                     'title' => $request->input('quiz_title') ?? ($lesson->title.' - اختبار'),
                     'description' => $request->input('quiz_description'),
                     'duration_minutes' => $request->input('duration_minutes'),
-                    'passing_percentage' => $request->integer('passing_percentage', 60),
+                    'passing_percentage' => $request->filled('passing_percentage') ? $request->integer('passing_percentage') : null,
                     'is_active' => true,
                 ]);
 
@@ -561,7 +561,7 @@ class AdminLessonController extends Controller
                     'title' => $validated['title'] ?? ($lessonModel->title.' - اختبار'),
                     'description' => $validated['description'] ?? null,
                     'duration_minutes' => $validated['duration_minutes'] ?? null,
-                    'passing_percentage' => $validated['passing_percentage'] ?? 60,
+                    'passing_percentage' => $validated['passing_percentage'] ?? null,
                     'is_active' => true,
                 ]);
             } else {
@@ -575,7 +575,7 @@ class AdminLessonController extends Controller
                 if (array_key_exists('duration_minutes', $validated)) {
                     $updates['duration_minutes'] = $validated['duration_minutes'];
                 }
-                if (isset($validated['passing_percentage'])) {
+                if (array_key_exists('passing_percentage', $validated)) {
                     $updates['passing_percentage'] = $validated['passing_percentage'];
                 }
 

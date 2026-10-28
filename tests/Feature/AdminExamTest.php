@@ -145,6 +145,27 @@ class AdminExamTest extends TestCase
         ]);
     }
 
+    public function test_can_create_exam_without_passing_percentage(): void
+    {
+        Sanctum::actingAs($this->admin, ['*'], 'sanctum');
+
+        $response = $this->postJson('/api/v1/admin/exams', [
+            'lesson_id' => $this->lesson->id,
+            'title' => 'اختبار بدون نسبة نجاح',
+            'passing_percentage' => null,
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.exam.passing_percentage', null);
+
+        $this->assertDatabaseHas('exams', [
+            'lesson_id' => $this->lesson->id,
+            'title' => 'اختبار بدون نسبة نجاح',
+            'passing_percentage' => null,
+        ]);
+    }
+
     public function test_can_add_question_without_points_and_defaults_to_one(): void
     {
         Sanctum::actingAs($this->admin, ['*'], 'sanctum');

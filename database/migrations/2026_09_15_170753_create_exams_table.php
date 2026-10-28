@@ -28,7 +28,7 @@ return new class extends Migration
 
             $table->unsignedInteger('duration_minutes')->nullable();
 
-            $table->unsignedTinyInteger('passing_percentage')->default(60);
+            $table->unsignedTinyInteger('passing_percentage')->nullable()->default(null);
 
             $table->boolean('is_active')->default(true);
 
